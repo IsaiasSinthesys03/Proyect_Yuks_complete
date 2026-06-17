@@ -7,6 +7,7 @@ export async function up(db: Kysely<any>): Promise<void> {
   // Crear Tabla Users
   await db.schema
     .createTable('users')
+    .ifNotExists()
     .addColumn('id', 'uuid', (col) => col.primaryKey().defaultTo(sql`uuid_generate_v4()`))
     .addColumn('email', 'varchar(255)', (col) => col.unique().notNull())
     .addColumn('password_hash', 'varchar(255)', (col) => col.notNull())
@@ -18,6 +19,7 @@ export async function up(db: Kysely<any>): Promise<void> {
   // Crear Tabla Profiles
   await db.schema
     .createTable('profiles')
+    .ifNotExists()
     .addColumn('id', 'uuid', (col) => col.primaryKey().defaultTo(sql`uuid_generate_v4()`))
     .addColumn('user_id', 'uuid', (col) => col.unique().notNull().references('users.id').onDelete('cascade'))
     .addColumn('first_name', 'varchar(100)', (col) => col.notNull())
