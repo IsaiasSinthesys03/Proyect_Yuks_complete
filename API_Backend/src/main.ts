@@ -8,16 +8,23 @@ import { redisConnection } from './infrastructure/cache/redis-client';
 
 // --- Repositorios (Adaptadores de Infraestructura) ---
 import { UserRepository } from './infrastructure/database/repositories/UserRepository';
+import { ProductRepository } from './infrastructure/database/repositories/ProductRepository';
 
 // --- Casos de Uso (Application Layer) ---
 import { RegisterUserUseCase } from './application/usecases/RegisterUserUseCase';
 import { LoginUserUseCase } from './application/usecases/LoginUserUseCase';
+import { GetProductsUseCase } from './application/usecases/GetProductsUseCase';
+import { GetProductDetailUseCase } from './application/usecases/GetProductDetailUseCase';
+import { GetTopProductsUseCase } from './application/usecases/GetTopProductsUseCase';
+import { GetCategoriesUseCase } from './application/usecases/GetCategoriesUseCase';
 
 // --- Controladores HTTP (Adaptadores) ---
 import { AuthController } from './infrastructure/http/controllers/AuthController';
+import { ProductController } from './infrastructure/http/controllers/ProductController';
 
 // --- Rutas ---
 import { buildAuthRoutes } from './infrastructure/http/routes/authRoutes';
+import { buildProductRoutes } from './infrastructure/http/routes/productRoutes';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -73,18 +80,32 @@ async function main(): Promise<void> {
 
   // 3.1 Repositorios
   const userRepository = new UserRepository();
+  const productRepository = new ProductRepository();
 
-  // 3.2 Casos de Uso
+  // 3.2 Casos de Uso — Auth
   const registerUserUseCase = new RegisterUserUseCase(userRepository);
   const loginUserUseCase = new LoginUserUseCase(userRepository, JWT_SECRET, JWT_EXPIRES_IN);
 
+  // 3.2 Casos de Uso — Catálogo
+  const getProductsUseCase = new GetProductsUseCase(productRepository);
+  const getProductDetailUseCase = new GetProductDetailUseCase(productRepository);
+  const getTopProductsUseCase = new GetTopProductsUseCase(productRepository);
+  const getCategoriesUseCase = new GetCategoriesUseCase(productRepository);
+
   // 3.3 Controladores
   const authController = new AuthController(registerUserUseCase, loginUserUseCase);
+  const productController = new ProductController(
+    getProductsUseCase,
+    getProductDetailUseCase,
+    getTopProductsUseCase,
+    getCategoriesUseCase,
+  );
 
   // ==========================================
   // 4. REGISTRAR RUTAS
   // ==========================================
   fastify.register(buildAuthRoutes(authController), { prefix: '/api/auth' });
+  fastify.register(buildProductRoutes(productController), { prefix: '/api/products' });
 
   // ==========================================
   // 5. HEALTHCHECK ENDPOINT
@@ -129,6 +150,7 @@ async function main(): Promise<void> {
 ║   Entorno:     ${(process.env.NODE_ENV || 'development').padEnd(38)}║
 ║   Healthcheck: http://localhost:${PORT}/api/health${' '.repeat(Math.max(0, 14 - String(PORT).length))}║
 ║   Auth:        http://localhost:${PORT}/api/auth${' '.repeat(Math.max(0, 16 - String(PORT).length))}║
+║   Productos:   http://localhost:${PORT}/api/products${' '.repeat(Math.max(0, 12 - String(PORT).length))}║
 ╚══════════════════════════════════════════════════════╝
     `);
   } catch (err) {
