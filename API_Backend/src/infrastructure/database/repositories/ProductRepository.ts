@@ -33,9 +33,36 @@ export class ProductRepository implements IProductRepository {
       baseQuery = baseQuery.where('products.category_id', '=', query.categoryId);
     }
 
-    // Búsqueda por nombre de producto (ILIKE para case-insensitive)
+    // Filtro por rango de precio (REQ-FE-12)
+    if (query.minPrice !== undefined) {
+      baseQuery = baseQuery.where(sql<boolean>`products.price >= ${query.minPrice}`);
+    }
+    if (query.maxPrice !== undefined) {
+      baseQuery = baseQuery.where(sql<boolean>`products.price <= ${query.maxPrice}`);
+    }
+
+    // Filtro por Personaje (REQ-FE-12), case-insensitive
+    if (query.character) {
+      baseQuery = baseQuery.where(sql<boolean>`lower(products.character) = lower(${query.character})`);
+    }
+
+    // Búsqueda por nombre: Full-Text Search (stemming) COMBINADA con similitud de
+    // trigramas (fuzzy / tolerancia a typos) — REQ-BE-03. La condición es un OR:
+    //   - FTS `@@ to_tsquery` cubre coincidencias por raíz/prefijo.
+    //   - `word_similarity` (pg_trgm) cubre errores ortográficos ("pikchu"→"Pikachu").
+    // El umbral 0.3 se validó empíricamente (Fase 33). Índices: GIN tsvector (008)
+    // + GIN trigram sobre name (018).
     if (query.search) {
-      baseQuery = baseQuery.where('products.name', 'ilike', `%${query.search}%`);
+      const raw = query.search.trim();
+      const tsQuery = this.buildTsQuery(raw);
+      if (tsQuery) {
+        baseQuery = baseQuery.where(
+          sql<boolean>`(products.search_vector @@ to_tsquery('spanish', ${tsQuery}) OR word_similarity(${raw}, products.name) > 0.3)`
+        );
+      } else {
+        // El texto quedó vacío tras sanitizar tsquery: usar solo similitud fuzzy.
+        baseQuery = baseQuery.where(sql<boolean>`word_similarity(${raw}, products.name) > 0.3`);
+      }
     }
 
     // --- Conteo total (para paginación) ---
@@ -55,21 +82,28 @@ export class ProductRepository implements IProductRepository {
     const sortOrder = query.sortOrder ?? 'desc';
 
     // --- Consulta paginada con datos ---
-    const rows = await baseQuery
-      .select([
-        'products.id',
-        'products.category_id',
-        'products.name',
-        'products.description',
-        'products.price',
-        'products.has_virtual_reward',
-        'products.is_deleted',
-        'products.version',
-        'products.image_url',
-        'products.created_at',
-        'products.updated_at',
-        'categories.name as category_name',
-      ])
+    let dataQuery = baseQuery.select([
+      'products.id',
+      'products.category_id',
+      'products.name',
+      'products.description',
+      'products.price',
+      'products.has_virtual_reward',
+      'products.is_deleted',
+      'products.version',
+      'products.image_url',
+      'products.created_at',
+      'products.updated_at',
+      'categories.name as category_name',
+    ]);
+
+    // Cuando hay búsqueda, ordenar PRIMERO por relevancia fuzzy (mejor match arriba),
+    // luego por el criterio solicitado como desempate.
+    if (query.search) {
+      dataQuery = dataQuery.orderBy(sql`word_similarity(${query.search.trim()}, products.name) DESC`);
+    }
+
+    const rows = await dataQuery
       .orderBy(sql.raw(`${sortColumn} ${sortOrder}`))
       .limit(limit)
       .offset(offset)
@@ -174,6 +208,86 @@ export class ProductRepository implements IProductRepository {
       .execute();
 
     return rows.map((row) => this.mapRowToCategory(row));
+  }
+
+  async findVariantWithProductById(variantId: string): Promise<{
+    variant: ProductVariant;
+    productId: string;
+    productName: string;
+    price: number;
+    hasVirtualReward: boolean;
+  } | null> {
+    const row = await db
+      .selectFrom('product_variants')
+      .innerJoin('products', 'products.id', 'product_variants.product_id')
+      .select([
+        'product_variants.id',
+        'product_variants.product_id',
+        'product_variants.sku',
+        'product_variants.size',
+        'product_variants.color',
+        'product_variants.stock',
+        'product_variants.created_at',
+        'products.name as product_name',
+        'products.price',
+        'products.has_virtual_reward',
+      ])
+      .where('product_variants.id', '=', variantId)
+      .where('products.is_deleted', '=', false)
+      .executeTakeFirst();
+
+    if (!row) return null;
+
+    return {
+      variant: this.mapRowToVariant(row),
+      productId: row.product_id,
+      productName: row.product_name,
+      price: parseFloat(row.price),
+      hasVirtualReward: row.has_virtual_reward,
+    };
+  }
+
+  async decrementStock(variantId: string, quantity: number): Promise<boolean> {
+    const result = await db
+      .updateTable('product_variants')
+      .set((eb) => ({ stock: eb('stock', '-', quantity) }))
+      .where('id', '=', variantId)
+      .where('stock', '>=', quantity)
+      .executeTakeFirst();
+
+    return result.numUpdatedRows > 0n;
+  }
+
+  async restoreStock(variantId: string, quantity: number): Promise<void> {
+    await db
+      .updateTable('product_variants')
+      .set((eb) => ({ stock: eb('stock', '+', quantity) }))
+      .where('id', '=', variantId)
+      .execute();
+  }
+
+  /**
+   * Construye una expresión `tsquery` segura a partir del texto libre del usuario.
+   *
+   * - Sanitiza caracteres especiales de tsquery (`&`, `|`, `!`, `:`, `(`, `)`) para
+   *   evitar que el usuario inyecte operadores booleanos no intencionados.
+   * - Aplica el sufijo `:*` a cada palabra para habilitar coincidencia de PREFIJO
+   *   (ej. "Pla" encuentra "Playera"), cubriendo el caso de uso del Omnibox (REQ-FE-12).
+   * - Une las palabras con `&` (AND) — todas las palabras deben aparecer.
+   *
+   * NOTA: Esto NO es tolerancia a errores ortográficos (fuzzy matching) en el sentido
+   * de Levenshtein — eso requeriría la extensión `pg_trgm` con un índice GIN adicional,
+   * fuera del alcance de esta remediación. Lo que sí resuelve de raíz es el anti-patrón
+   * `ILIKE` (full table scan, sin índice aprovechable) exigido por REQ-BE-03.
+   */
+  private buildTsQuery(search: string): string {
+    const sanitizedWords = search
+      .replace(/[&|!:()]/g, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    return sanitizedWords.map((word) => `${word}:*`).join(' & ');
   }
 
   // --- Mappers privados: traducen snake_case (SQL) → camelCase (Dominio) ---

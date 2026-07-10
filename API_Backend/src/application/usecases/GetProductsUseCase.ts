@@ -20,9 +20,17 @@ export class GetProductsUseCase {
     const page = Math.max(1, Math.floor(query.page ?? 1));
     const limit = Math.min(50, Math.max(1, Math.floor(query.limit ?? 12)));
 
+    // Sanitizar el rango de precio: descartar valores negativos o no numéricos.
+    const sanitizePrice = (v: number | undefined): number | undefined =>
+      v !== undefined && Number.isFinite(v) && v >= 0 ? v : undefined;
+
     const sanitizedQuery: GetProductsQueryDTO = {
       search: query.search?.trim() || undefined,
       categoryId: query.categoryId || undefined,
+      // Fase 33: los filtros de precio y personaje DEBEN propagarse al repositorio.
+      minPrice: sanitizePrice(query.minPrice),
+      maxPrice: sanitizePrice(query.maxPrice),
+      character: query.character?.trim() || undefined,
       page,
       limit,
       sortBy: query.sortBy ?? 'createdAt',

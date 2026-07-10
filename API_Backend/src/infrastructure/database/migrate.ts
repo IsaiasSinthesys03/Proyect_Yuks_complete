@@ -36,6 +36,23 @@ async function run() {
   // de resolución de rutas dinámicas (ESM vs CJS) en Windows con tsx.
   const migration001 = require('./migrations/001_initial_schema');
   const migration002 = require('./migrations/002_catalog_schema');
+  const migration003 = require('./migrations/003_addresses_schema');
+  const migration004 = require('./migrations/004_coupons_schema');
+  const migration005 = require('./migrations/005_orders_schema');
+  const migration006 = require('./migrations/006_wallet_schema');
+  const migration007 = require('./migrations/007_rewards_schema');
+  const migration008 = require('./migrations/008_product_search_index');
+  const migration009 = require('./migrations/009_admin_security_schema');
+  const migration010 = require('./migrations/010_fix_audit_trigger_function');
+  const migration011 = require('./migrations/011_redact_sensitive_audit_fields');
+  const migration012 = require('./migrations/012_donations_schema');
+  const migration013 = require('./migrations/013_advanced_auth_schema');
+  const migration014 = require('./migrations/014_cms_content_schema');
+  const migration015 = require('./migrations/015_gamification_wishlist_schema');
+  const migration016 = require('./migrations/016_notifications_schema');
+  const migration017 = require('./migrations/017_register_compliance');
+  const migration018 = require('./migrations/018_fuzzy_search');
+  const migration019 = require('./migrations/019_performance_indices');
 
   const migrator = new Migrator({
     db,
@@ -44,6 +61,23 @@ async function run() {
         return {
           '001_initial_schema': migration001,
           '002_catalog_schema': migration002,
+          '003_addresses_schema': migration003,
+          '004_coupons_schema': migration004,
+          '005_orders_schema': migration005,
+          '006_wallet_schema': migration006,
+          '007_rewards_schema': migration007,
+          '008_product_search_index': migration008,
+          '009_admin_security_schema': migration009,
+          '010_fix_audit_trigger_function': migration010,
+          '011_redact_sensitive_audit_fields': migration011,
+          '012_donations_schema': migration012,
+          '013_advanced_auth_schema': migration013,
+          '014_cms_content_schema': migration014,
+          '015_gamification_wishlist_schema': migration015,
+          '016_notifications_schema': migration016,
+          '017_register_compliance': migration017,
+          '018_fuzzy_search': migration018,
+          '019_performance_indices': migration019,
         };
       },
     },

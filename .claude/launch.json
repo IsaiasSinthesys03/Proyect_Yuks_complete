@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "animayuks-proto",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "Plantilla_Prototipos_UI_UX", "run", "dev"],
+      "port": 5173
+    }
+  ]
+}

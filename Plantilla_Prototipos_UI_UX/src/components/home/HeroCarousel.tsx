@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Play, ImageIcon } from 'lucide-react';
+import { useBanners } from '../../api/banners';
 
 interface Banner {
     tag: string;
@@ -24,7 +25,7 @@ export const HeroCarousel: React.FC = () => {
         });
     };
 
-    const banners: Banner[] = [
+    const DEFAULT_BANNERS: Banner[] = [
         {
             tag: "Lanzamiento Oficial v2.0",
             title: "Viste tu Leyenda. Gana Jugando.",
@@ -55,10 +56,29 @@ export const HeroCarousel: React.FC = () => {
         }
     ];
 
+    // [Fase 39] Banners dirigidos por la BD (REQ-FE-01). El modelo del backend
+    // (title/imageUrl/linkUrl) es más simple que el diseño del prototipo
+    // (video/accent/desc): esos campos usan defaults del prototipo. Si NO hay
+    // banners activos en el CMS, se conserva el diseño por defecto intacto.
+    const { data: apiBanners } = useBanners();
+    const ACCENTS = ["#ffce07", "#ec1676", "#03bbd3"];
+    const banners: Banner[] = (apiBanners && apiBanners.length)
+        ? apiBanners.map((b: any, i: number) => ({
+            tag: b.title,
+            title: b.title,
+            desc: '',
+            video: DEFAULT_BANNERS[i % DEFAULT_BANNERS.length].video,
+            accent: ACCENTS[i % ACCENTS.length],
+            char: b.title,
+            image: b.imageUrl || undefined,
+            videoClass: DEFAULT_BANNERS[i % DEFAULT_BANNERS.length].videoClass,
+        }))
+        : DEFAULT_BANNERS;
+
     const prevSlide = () => setActiveSlide(prev => (prev === 0 ? banners.length - 1 : prev - 1));
     const nextSlide = () => setActiveSlide(prev => (prev === banners.length - 1 ? 0 : prev + 1));
 
-    const currentSlide = banners[activeSlide];
+    const currentSlide = banners[activeSlide] || banners[0];
     const gemColors = {
         "#ffce07": {
             light: "#ffe57f",

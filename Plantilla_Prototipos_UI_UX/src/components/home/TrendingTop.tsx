@@ -1,14 +1,19 @@
 import React from 'react';
 import { ChevronRight, Heart, Package, ShoppingCart } from 'lucide-react';
+import { useTopProducts } from '../../api/products';
+import { quickAdd } from '../../lib/quickAdd';
 
 interface TrendingTopProps {
     navigate: (view: string, id?: any) => void;
-    setCartTotal: React.Dispatch<React.SetStateAction<number>>;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
-export const TrendingTop: React.FC<TrendingTopProps> = ({ navigate, setCartTotal, showToast }) => {
-    const products = [1, 2, 3, 4];
+export const TrendingTop: React.FC<TrendingTopProps> = ({ navigate, showToast }) => {
+    // [Fase 39] Top Ventas desde la BD (REQ-FE-02, cacheado en Redis 1h por el backend).
+    // Mientras carga, `products` está vacío → la grilla se puebla al llegar la data
+    // (sin skeleton, no rompe la maqueta; el encabezado de la sección permanece).
+    const { data: topProducts } = useTopProducts(4);
+    const products: any[] = topProducts ?? [];
 
     return (
         <section
@@ -61,7 +66,7 @@ export const TrendingTop: React.FC<TrendingTopProps> = ({ navigate, setCartTotal
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                    {products.map((i, index) => {
+                    {products.map((product, index) => {
                         const isEven = index % 2 === 0;
                         const frameImage = isEven
                             ? '/assets/imgWeb/Banner_Tienda/Producto_1.png'
@@ -89,16 +94,16 @@ export const TrendingTop: React.FC<TrendingTopProps> = ({ navigate, setCartTotal
 
                         return (
                             <div
-                                key={i}
+                                key={product.id}
                                 className="group relative w-full overflow-hidden drop-shadow-xl hover:drop-shadow-2xl transition-all duration-300 hover:scale-[1.02] cursor-pointer"
                                 style={{ aspectRatio: '3 / 4.35' }}
-                                onClick={() => navigate('product', i)}
+                                onClick={() => navigate('product', product.id)}
                             >
                                 {/* 1. Imagen del marco asimétrico (Fondo de borde de la tarjeta) */}
                                 <div className="absolute inset-0 w-full h-full z-10 overflow-hidden pointer-events-none">
                                     <img
                                         src={frameImage}
-                                        alt={`Tarjeta de Producto ${i}`}
+                                        alt={product.name}
                                         className="max-w-none"
                                         style={imageStyle}
                                     />
@@ -151,13 +156,13 @@ export const TrendingTop: React.FC<TrendingTopProps> = ({ navigate, setCartTotal
                                             }}
                                         >
                                             <h3 className="font-extrabold text-slate-950 text-xs md:text-sm leading-tight">
-                                                Playera Élite v.{i}
+                                                {product.name}
                                             </h3>
                                             <p className="text-[#0f5c14] text-[9px] font-black uppercase tracking-wider">
-                                                Edición Especial
+                                                {product.categoryName || 'Edición Especial'}
                                             </p>
                                             <div className="text-sm md:text-base font-black text-slate-950 leading-none mt-0.5">
-                                                $450
+                                                ${product.price}
                                             </div>
                                         </div>
 
@@ -165,8 +170,7 @@ export const TrendingTop: React.FC<TrendingTopProps> = ({ navigate, setCartTotal
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                setCartTotal(prev => prev + 450);
-                                                showToast('Agregado al carrito', 'success');
+                                                quickAdd(product.id, showToast); // Fase 42: carrito real (1ª variante con stock)
                                             }}
                                             title="Agregar al carrito"
                                             className="relative group flex items-center justify-center w-10 h-10 mr-3 overflow-hidden rounded-full border-[1.5px] border-[#3a2212] bg-gradient-to-b from-[#e6c59e] via-[#d4ad82] to-[#b88d5e] shadow-[0_3px_0_#3a2212,0_4px_6px_rgba(0,0,0,0.2)] transition-all hover:-translate-y-0.5 hover:shadow-[0_4px_0_#3a2212,0_5px_8px_rgba(0,0,0,0.3)] hover:brightness-110 active:translate-y-[3px] active:shadow-[0_0px_0_#3a2212,0_1px_2px_rgba(0,0,0,0.2)]"

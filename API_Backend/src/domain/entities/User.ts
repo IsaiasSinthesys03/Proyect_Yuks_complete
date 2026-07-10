@@ -11,6 +11,12 @@ export interface User {
   readonly passwordHash: string;
   readonly role: UserRole;
   readonly isBanned: boolean;
+  /** Secreto TOTP en Base32 (RFC 6238). Solo para administradores con 2FA. `null` si no configurado. */
+  readonly totpSecret: string | null;
+  /** Si el 2FA TOTP está activo. Cuando es `true`, el login admin exige el segundo factor. */
+  readonly totpEnabled: boolean;
+  /** Identificador "sub" de Google OAuth. `null` si la cuenta no está vinculada a Google. */
+  readonly googleId: string | null;
   readonly createdAt: Date;
 }
 

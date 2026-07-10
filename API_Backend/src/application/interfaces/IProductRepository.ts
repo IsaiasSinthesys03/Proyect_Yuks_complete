@@ -1,5 +1,6 @@
 import { Category } from '../../domain/entities/Category';
 import { Product, ProductWithCategory } from '../../domain/entities/Product';
+import { ProductVariant } from '../../domain/entities/ProductVariant';
 import { GetProductsQueryDTO, PaginatedResponseDTO, ProductDetailDTO } from '../../domain/types/ProductDTOs';
 
 /**
@@ -54,4 +55,37 @@ export interface IProductRepository {
    * @returns Lista completa de categorías.
    */
   findAllCategories(): Promise<Category[]>;
+
+  /**
+   * Obtiene una variante junto con los datos del producto padre necesarios
+   * para congelar el snapshot del checkout (REQ-BE-01): precio, nombre y
+   * flag de recompensa virtual. El precio vive en `products`, no en la
+   * variante — todas las variantes de un producto comparten el mismo precio.
+   *
+   * @returns `null` si la variante no existe o el producto está soft-deleted.
+   */
+  findVariantWithProductById(variantId: string): Promise<{
+    variant: ProductVariant;
+    productId: string;
+    productName: string;
+    price: number;
+    hasVirtualReward: boolean;
+  } | null>;
+
+  /**
+   * Decrementa el stock de una variante de forma atómica.
+   *
+   * La implementación DEBE usar una operación condicional SQL
+   * (`UPDATE product_variants SET stock = stock - quantity WHERE id = variantId AND stock >= quantity`)
+   * para servir como el guardián final contra race conditions (REQ-BE-01, Paso 10).
+   *
+   * @returns `true` si el decremento tuvo éxito, `false` si no había stock suficiente.
+   */
+  decrementStock(variantId: string, quantity: number): Promise<boolean>;
+
+  /**
+   * Restaura stock de una variante (operación delta, sin condición).
+   * Usado al cancelar un pedido para devolver el inventario reservado.
+   */
+  restoreStock(variantId: string, quantity: number): Promise<void>;
 }

@@ -45,3 +45,15 @@ export class TermsNotAcceptedError extends Error {
     this.name = 'TermsNotAcceptedError';
   }
 }
+
+/**
+ * Se lanza cuando el Refresh Token (cookie HttpOnly) es ausente, inválido,
+ * expirado o pertenece a un usuario que ya no existe/está baneado (Q19).
+ * HTTP 401 Unauthorized — el cliente debe redirigir a login.
+ */
+export class InvalidRefreshTokenError extends Error {
+  constructor() {
+    super('La sesión expiró o el token de renovación es inválido. Inicia sesión nuevamente.');
+    this.name = 'InvalidRefreshTokenError';
+  }
+}

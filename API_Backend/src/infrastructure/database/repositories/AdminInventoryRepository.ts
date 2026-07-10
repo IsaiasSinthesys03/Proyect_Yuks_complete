@@ -1,0 +1,111 @@
+import { db } from '../client';
+import { IAdminInventoryRepository } from '../../../application/interfaces/IAdminInventoryRepository';
+import { PaginatedResponseDTO } from '../../../domain/types/ProductDTOs';
+import { InventoryItemDTO, AdminProductListItemDTO, StockStatus } from '../../../domain/types/InventoryDTOs';
+
+/** Umbral de "Stock Bajo" para el badge del monitor de inventario. */
+const LOW_STOCK_THRESHOLD = 5;
+
+function deriveStatus(stock: number): StockStatus {
+  if (stock <= 0) return 'AGOTADO';
+  if (stock <= LOW_STOCK_THRESHOLD) return 'STOCK_BAJO';
+  return 'ACTIVO';
+}
+
+export class AdminInventoryRepository implements IAdminInventoryRepository {
+  async findAllVariantsPaginated(page: number, limit: number): Promise<PaginatedResponseDTO<InventoryItemDTO>> {
+    const offset = (page - 1) * limit;
+
+    const countRow = await db
+      .selectFrom('product_variants')
+      .select((eb) => eb.fn.countAll<number>().as('total'))
+      .executeTakeFirstOrThrow();
+    const total = Number(countRow.total);
+
+    const rows = await db
+      .selectFrom('product_variants')
+      .innerJoin('products', 'products.id', 'product_variants.product_id')
+      .select([
+        'products.id as product_id',
+        'products.name as product_name',
+        'products.is_deleted as is_deleted',
+        'products.price as price',
+        'product_variants.id as variant_id',
+        'product_variants.sku as sku',
+        'product_variants.size as size',
+        'product_variants.color as color',
+        'product_variants.stock as stock',
+      ])
+      .orderBy('product_variants.stock', 'asc') // los más críticos (agotados) primero
+      .orderBy('products.name', 'asc')
+      .limit(limit)
+      .offset(offset)
+      .execute();
+
+    return {
+      data: rows.map((r) => ({
+        productId: r.product_id,
+        productName: r.product_name,
+        isDeleted: r.is_deleted,
+        variantId: r.variant_id,
+        sku: r.sku,
+        size: r.size,
+        color: r.color,
+        price: parseFloat(r.price),
+        stock: r.stock,
+        status: deriveStatus(r.stock),
+      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async findAllProductsPaginated(page: number, limit: number, includeDeleted: boolean): Promise<PaginatedResponseDTO<AdminProductListItemDTO>> {
+    const offset = (page - 1) * limit;
+
+    let countBase = db.selectFrom('products');
+    if (!includeDeleted) countBase = countBase.where('is_deleted', '=', false);
+    const countRow = await countBase.select((eb) => eb.fn.countAll<number>().as('total')).executeTakeFirstOrThrow();
+    const total = Number(countRow.total);
+
+    let dataBase = db
+      .selectFrom('products')
+      .innerJoin('categories', 'categories.id', 'products.category_id');
+    if (!includeDeleted) dataBase = dataBase.where('products.is_deleted', '=', false);
+
+    const rows = await dataBase
+      .select([
+        'products.id as id',
+        'products.name as name',
+        'categories.name as category_name',
+        'products.price as price',
+        'products.has_virtual_reward as has_virtual_reward',
+        'products.is_deleted as is_deleted',
+        'products.character as character',
+        'products.created_at as created_at',
+      ])
+      .orderBy('products.created_at', 'desc')
+      .limit(limit)
+      .offset(offset)
+      .execute();
+
+    return {
+      data: rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        categoryName: r.category_name,
+        price: parseFloat(r.price),
+        hasVirtualReward: r.has_virtual_reward,
+        isDeleted: r.is_deleted,
+        character: r.character,
+        createdAt: r.created_at,
+      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+}

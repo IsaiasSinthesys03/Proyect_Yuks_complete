@@ -5,6 +5,17 @@ import { UserAlreadyExistsError } from '../../domain/errors/AuthErrors';
 import { TermsNotAcceptedError } from '../../domain/errors/AuthErrors';
 import { User } from '../../domain/entities/User';
 
+/** Longitud mínima de dígitos para considerar el teléfono válido. */
+const MIN_PHONE_DIGITS = 8;
+
+/** Se lanza cuando el teléfono del registro es inválido/ausente (REQ-FE-08). HTTP 422. */
+export class InvalidPhoneError extends Error {
+  constructor() {
+    super('El número telefónico es obligatorio y debe ser válido.');
+    this.name = 'InvalidPhoneError';
+  }
+}
+
 /**
  * Caso de Uso: Registrar Usuario
  *
@@ -27,13 +38,19 @@ export class RegisterUserUseCase {
       throw new TermsNotAcceptedError();
     }
 
-    // 2. Verificar que el email no esté duplicado
+    // 2. Validar teléfono obligatorio (REQ-FE-08)
+    const phone = (dto.phone ?? '').trim();
+    if (phone.replace(/\D/g, '').length < MIN_PHONE_DIGITS) {
+      throw new InvalidPhoneError();
+    }
+
+    // 3. Verificar que el email no esté duplicado
     const existingUser = await this.userRepository.findByEmail(dto.email);
     if (existingUser) {
       throw new UserAlreadyExistsError(dto.email);
     }
 
-    // 3. Hashear la contraseña con Argon2id (resistente a ataques GPU y side-channel)
+    // 4. Hashear la contraseña con Argon2id (resistente a ataques GPU y side-channel)
     const passwordHash = await argon2.hash(dto.password, {
       type: argon2.argon2id,
       memoryCost: 65536,  // 64 MB
@@ -41,16 +58,19 @@ export class RegisterUserUseCase {
       parallelism: 4,     // 4 hilos
     });
 
-    // 4. Delegar la persistencia al repositorio (transacción atómica User + Profile)
+    // 5. Delegar la persistencia al repositorio (transacción atómica User + Profile).
+    //    Fase 33: se persiste la aceptación de privacidad (+ timestamp) y el teléfono.
     const newUser = await this.userRepository.createWithProfile(
       {
         email: dto.email.toLowerCase().trim(),
         passwordHash,
         role: 'CLIENT',
+        privacyAccepted: true, // el paso 1 garantizó termsAccepted === true
       },
       {
         firstName: dto.firstName.trim(),
         lastName: dto.lastName.trim(),
+        phone,
       }
     );
 

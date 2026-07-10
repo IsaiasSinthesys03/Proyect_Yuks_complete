@@ -3,6 +3,10 @@ import {
     Gamepad2, Search, X, Package, User, ShoppingCart, Menu, ChevronRight, Plus, Terminal, FileText
 } from 'lucide-react';
 import { useHeaderNav } from '../../hooks/useHeaderNav';
+import { useDebounce } from '../../hooks/useDebounce';
+import { useProductSearch } from '../../api/products';
+import { useCartStore } from '../../store/cartStore';
+import { quickAdd } from '../../lib/quickAdd';
 
 interface HeaderProps {
     navigate: (view: string, payload?: any) => void;
@@ -11,8 +15,6 @@ interface HeaderProps {
     openProfile: () => void;
     openMobileMenu: () => void;
     isLoggedIn: boolean;
-    setCartTotal: React.Dispatch<React.SetStateAction<number>>;
-    cartTotal: number;
     showToast: (msg: string, type?: string) => void;
 }
 
@@ -23,10 +25,10 @@ export const Header: React.FC<HeaderProps> = ({
     openProfile,
     openMobileMenu,
     isLoggedIn,
-    setCartTotal,
-    cartTotal,
     showToast
 }) => {
+    // Fase 42: badge del carrito REAL (número de piezas del cartStore).
+    const cartCount = useCartStore((s: any) => s.items.reduce((n: number, i: any) => n + i.quantity, 0));
     const {
         scrolled,
         searchQuery,
@@ -37,6 +39,13 @@ export const Header: React.FC<HeaderProps> = ({
         closeCommand,
         searchInputRef
     } = useHeaderNav();
+
+    // [Fase 41] Omnibox predictivo REAL: el término viaja debounced (350ms) para
+    // no bombardear el backend en cada pulsación. El backend aplica la búsqueda
+    // FUZZY de la Fase 33 (pg_trgm): "pikchu" encuentra "Pikachu".
+    const debouncedQuery = useDebounce(searchQuery, 350);
+    const { data: searchData } = useProductSearch(debouncedQuery);
+    const searchResults: any[] = searchData?.data ?? [];
 
     // Reemplazo de las clases CSS inyectadas por utilidades puras de Tailwind para Glassmorphism
     const getHeaderBg = () => {
@@ -112,20 +121,24 @@ export const Header: React.FC<HeaderProps> = ({
                             <div className="absolute top-full left-0 w-full mt-2 bg-white/95 backdrop-blur-xl border border-slate-200/50 rounded-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.2)] overflow-hidden z-[100] animate-in fade-in zoom-in-95">
                                 <div className="p-3 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center">
                                     <span className="text-xs font-bold text-slate-500">Resultados para "{searchQuery}"</span>
-                                    <span className="text-[10px] bg-[#03bbd3]/10 text-[#03bbd3] px-2 py-0.5 rounded border border-[#03bbd3]/20">Búsqueda Predictiva Algolia</span>
+                                    <span className="text-[10px] bg-[#03bbd3]/10 text-[#03bbd3] px-2 py-0.5 rounded border border-[#03bbd3]/20">Búsqueda Predictiva</span>
                                 </div>
                                 <div className="max-h-80 overflow-y-auto p-2 space-y-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full">
-                                    {[1, 2].map(i => (
-                                        <div key={i} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer group" onClick={() => { clearSearch(); navigate('product', i); }}>
-                                            <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center shrink-0"><Package className="w-6 h-6 text-slate-400 group-hover:text-[#03bbd3] transition-colors" /></div>
+                                    {searchResults.map((product) => (
+                                        <div key={product.id} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer group" onClick={() => { clearSearch(); navigate('product', product.id); }}>
+                                            <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
+                                                {product.imageUrl
+                                                    ? <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                                                    : <Package className="w-6 h-6 text-slate-400 group-hover:text-[#03bbd3] transition-colors" />}
+                                            </div>
                                             <div className="flex-1">
-                                                <p className="text-sm font-bold text-slate-900 group-hover:text-[#03bbd3] transition-colors">Playera Élite Neón {i}</p>
+                                                <p className="text-sm font-bold text-slate-900 group-hover:text-[#03bbd3] transition-colors">{product.name}</p>
                                                 <div className="flex items-center gap-2 mt-1">
-                                                    <span className="text-xs text-slate-500">$450.00</span>
-                                                    <span className="text-[9px] bg-[#502c84]/10 text-[#502c84] px-1.5 py-0.5 rounded flex items-center gap-1"><Gamepad2 className="w-3 h-3" /> Skin Incluida</span>
+                                                    <span className="text-xs text-slate-500">${Number(product.price).toFixed(2)}</span>
+                                                    {product.hasVirtualReward && <span className="text-[9px] bg-[#502c84]/10 text-[#502c84] px-1.5 py-0.5 rounded flex items-center gap-1"><Gamepad2 className="w-3 h-3" /> Skin Incluida</span>}
                                                 </div>
                                             </div>
-                                            <button onClick={(e) => { e.stopPropagation(); setCartTotal(prev => prev + 450); showToast('Agregado directo desde Omnibox', 'success'); clearSearch(); }} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-[#03bbd3] text-slate-400 hover:text-white flex items-center justify-center transition-colors shrink-0 shadow-sm">
+                                            <button onClick={(e) => { e.stopPropagation(); quickAdd(product.id, showToast); clearSearch(); }} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-[#03bbd3] text-slate-400 hover:text-white flex items-center justify-center transition-colors shrink-0 shadow-sm">
                                                 <Plus className="w-4 h-4" />
                                             </button>
                                         </div>
@@ -148,7 +161,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                         <button onClick={openCart} className="hover:text-white transition-colors relative flex items-center gap-2 bg-slate-100/80 backdrop-blur-sm border border-slate-200/50 px-3 py-1.5 rounded-full group">
                             <ShoppingCart className="w-4 h-4 text-slate-500 group-hover:text-[#03bbd3] transition-colors" />
-                            <span className="text-xs font-bold text-[#03bbd3]">{cartTotal > 0 ? (cartTotal / 450) : 0}</span>
+                            <span className="text-xs font-bold text-[#03bbd3]">{cartCount}</span>
                         </button>
 
                         <button onClick={openMobileMenu} className="md:hidden hover:text-slate-900"><Menu className="w-6 h-6" /></button>
