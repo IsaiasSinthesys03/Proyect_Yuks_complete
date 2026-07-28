@@ -23,6 +23,7 @@ export class LegalDocumentRepository implements ILegalDocumentRepository {
     if (data.title !== undefined) updates['title'] = data.title;
     if (data.content !== undefined) updates['content'] = data.content;
     if (data.version !== undefined) updates['version'] = data.version;
+    if (data.pdfUrl !== undefined) updates['pdf_url'] = data.pdfUrl;
 
     const row = await db
       .updateTable('legal_documents')
@@ -39,6 +40,7 @@ export class LegalDocumentRepository implements ILegalDocumentRepository {
     title: string;
     content: string;
     version: string;
+    pdf_url?: string | null;
     created_at: Date;
     updated_at: Date;
   }): LegalDocument {
@@ -47,6 +49,7 @@ export class LegalDocumentRepository implements ILegalDocumentRepository {
       slug: row.slug,
       title: row.title,
       content: row.content,
+      pdfUrl: row.pdf_url,
       version: row.version,
       createdAt: row.created_at,
       updatedAt: row.updated_at,

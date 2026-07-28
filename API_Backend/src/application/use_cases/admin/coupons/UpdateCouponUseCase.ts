@@ -1,6 +1,7 @@
 import { ICouponRepository } from '../../../interfaces/ICouponRepository';
 import { Coupon } from '../../../../domain/entities/Coupon';
 import { UpdateCouponDTO } from '../../../../domain/types/AdminCouponDTOs';
+import { AdminAuditContext } from '../../../../domain/types/AdminTypes';
 import {
   InvalidDiscountValueError,
   InvalidExpirationDateError,
@@ -11,7 +12,7 @@ import {
 export class UpdateCouponUseCase {
   constructor(private readonly couponRepo: ICouponRepository) {}
 
-  async execute(id: string, dto: UpdateCouponDTO): Promise<Coupon> {
+  async execute(id: string, dto: UpdateCouponDTO, context: AdminAuditContext): Promise<Coupon> {
     // Validar discountValue si se envía junto con discountType
     // Para detectar el tipo final, usamos el existente si no se cambia
     if (dto.discountValue !== undefined || dto.discountType !== undefined) {
@@ -43,7 +44,7 @@ export class UpdateCouponUseCase {
     }
 
     try {
-      const updated = await this.couponRepo.updateCoupon(id, updatePayload);
+      const updated = await this.couponRepo.updateCoupon(id, updatePayload, context);
       if (!updated) throw new CouponNotFoundAdminError(id);
       return updated;
     } catch (err: unknown) {

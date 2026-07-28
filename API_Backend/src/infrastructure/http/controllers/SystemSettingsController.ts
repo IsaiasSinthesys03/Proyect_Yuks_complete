@@ -36,7 +36,7 @@ export class SystemSettingsController {
   async update(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const dto = request.body as UpdateSystemSettingsDTO;
-      const settings = await this.updateSystemSettingsUseCase.execute(dto);
+      const settings = await this.updateSystemSettingsUseCase.execute(dto, request.adminContext!);
 
       return reply.status(200).send({
         statusCode: 200,

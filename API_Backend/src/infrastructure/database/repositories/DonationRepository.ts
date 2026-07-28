@@ -1,7 +1,11 @@
 import { db } from '../client';
 import { IDonationRepository } from '../../../application/interfaces/IDonationRepository';
 import { Donation, DonationStatus } from '../../../domain/entities/Donation';
-import { AdminDonationFilterDTO, DonationPaginatedResponseDTO } from '../../../domain/types/DonationDTOs';
+import {
+  AdminDonationFilterDTO,
+  DonationPaginatedResponseDTO,
+  MyDonationsPaginatedResponseDTO,
+} from '../../../domain/types/DonationDTOs';
 
 export class DonationRepository implements IDonationRepository {
   async create(data: {
@@ -9,6 +13,7 @@ export class DonationRepository implements IDonationRepository {
     amount: number;
     donorEmail: string;
     idempotencyKey: string;
+    userId?: string;
   }): Promise<Donation> {
     const row = await db
       .insertInto('donations')
@@ -17,6 +22,7 @@ export class DonationRepository implements IDonationRepository {
         amount: data.amount.toString(),
         donor_email: data.donorEmail,
         idempotency_key: data.idempotencyKey,
+        user_id: data.userId ?? null,
       })
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -100,8 +106,48 @@ export class DonationRepository implements IDonationRepository {
     };
   }
 
+  async findByUserId(
+    userId: string,
+    page = 1,
+    limit = 20
+  ): Promise<MyDonationsPaginatedResponseDTO> {
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.min(100, Math.max(1, limit));
+    const offset = (safePage - 1) * safeLimit;
+
+    const countResult = await db
+      .selectFrom('donations')
+      .where('user_id', '=', userId)
+      .select((eb) => eb.fn.countAll<number>().as('total'))
+      .executeTakeFirstOrThrow();
+
+    const rows = await db
+      .selectFrom('donations')
+      .select(['id', 'amount', 'status', 'created_at'])
+      .where('user_id', '=', userId)
+      .orderBy('created_at', 'desc')
+      .limit(safeLimit)
+      .offset(offset)
+      .execute();
+
+    const total = Number(countResult.total);
+    return {
+      data: rows.map((row) => ({
+        id: row.id,
+        amount: parseFloat(row.amount),
+        status: row.status as DonationStatus,
+        createdAt: row.created_at,
+      })),
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
+    };
+  }
+
   private mapRowToDonation(row: {
     id: string;
+    user_id: string | null;
     stripe_payment_intent_id: string | null;
     stripe_charge_id: string | null;
     amount: string;
@@ -112,6 +158,7 @@ export class DonationRepository implements IDonationRepository {
   }): Donation {
     return {
       id: row.id,
+      userId: row.user_id,
       stripePaymentIntentId: row.stripe_payment_intent_id,
       stripeChargeId: row.stripe_charge_id,
       amount: parseFloat(row.amount),

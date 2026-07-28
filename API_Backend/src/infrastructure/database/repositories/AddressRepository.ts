@@ -47,6 +47,7 @@ export class AddressRepository implements IAddressRepository {
         postal_code: data.postalCode,
         municipality: data.municipality,
         state: data.state,
+        country: data.countryCode?.trim().toUpperCase() || 'MX',
         references: data.references ?? null,
       })
       .returningAll()
@@ -67,6 +68,7 @@ export class AddressRepository implements IAddressRepository {
         ...(data.postalCode !== undefined ? { postal_code: data.postalCode } : {}),
         ...(data.municipality !== undefined ? { municipality: data.municipality } : {}),
         ...(data.state !== undefined ? { state: data.state } : {}),
+        ...(data.countryCode !== undefined ? { country: data.countryCode.trim().toUpperCase() } : {}),
         ...(data.references !== undefined ? { references: data.references } : {}),
         updated_at: new Date(),
       })

@@ -5,6 +5,7 @@ import { Order, OrderStatus, DeliveryType } from '../../../domain/entities/Order
 import { OrderItem } from '../../../domain/entities/OrderItem';
 import { RewardCode, RewardCodeStatus } from '../../../domain/entities/RewardCode';
 import { OrderSummaryDTO, OrderDetailDTO } from '../../../domain/types/OrderDTOs';
+import { AdminOrderSummaryDTO } from '../../../domain/types/AdminOrderDTOs';
 import { PaginatedResponseDTO } from '../../../domain/types/ProductDTOs';
 import { AdminOrderFilterDTO } from '../../../domain/types/AdminOrderDTOs';
 import { AdminAuditContext } from '../../../domain/types/AdminTypes';
@@ -247,17 +248,24 @@ export class OrderRepository implements IOrderRepository {
     return this.mapRowToOrder(row);
   }
 
-  async findAllAdmin(filters: AdminOrderFilterDTO): Promise<PaginatedResponseDTO<OrderSummaryDTO>> {
+  async findAllAdmin(filters: AdminOrderFilterDTO): Promise<PaginatedResponseDTO<AdminOrderSummaryDTO>> {
     const page  = filters.page  ?? 1;
     const limit = filters.limit ?? 20;
     const offset = (page - 1) * limit;
 
-    let baseQuery = db.selectFrom('orders').selectAll();
+    // Fase 49 (Kanban logístico): JOIN a profiles para nombre/teléfono del
+    // cliente + snapshot de entrega de la orden — el operador despacha sin
+    // abrir cada pedido.
+    let baseQuery = db
+      .selectFrom('orders')
+      .leftJoin('profiles', 'profiles.user_id', 'orders.user_id')
+      .selectAll('orders')
+      .select(['profiles.first_name', 'profiles.last_name', 'profiles.phone']);
     if (filters.status) {
-      baseQuery = baseQuery.where('status', '=', filters.status);
+      baseQuery = baseQuery.where('orders.status', '=', filters.status);
     }
     if (filters.userId) {
-      baseQuery = baseQuery.where('user_id', '=', filters.userId);
+      baseQuery = baseQuery.where('orders.user_id', '=', filters.userId);
     }
 
     const countResult = await db
@@ -270,12 +278,12 @@ export class OrderRepository implements IOrderRepository {
     const total = Number(countResult.total);
 
     const orderRows = await baseQuery
-      .orderBy('created_at', 'desc')
+      .orderBy('orders.created_at', 'desc')
       .limit(limit)
       .offset(offset)
       .execute();
 
-    const data: OrderSummaryDTO[] = [];
+    const data: AdminOrderSummaryDTO[] = [];
     for (const row of orderRows) {
       const extras = await this.getOrderSummaryExtras(row.id);
       data.push({
@@ -284,7 +292,13 @@ export class OrderRepository implements IOrderRepository {
         totalPaid: parseFloat(row.total_paid),
         itemCount: extras.itemCount,
         createdAt: row.created_at,
-        productThumbnail: extras.productThumbnail,
+        deliveryType: row.delivery_type,
+        shippingAddress: row.shipping_address,
+        postalCode: row.postal_code,
+        municipality: row.municipality,
+        state: row.state,
+        clientName: `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim() || 'Cliente',
+        clientPhone: row.phone,
       });
     }
 

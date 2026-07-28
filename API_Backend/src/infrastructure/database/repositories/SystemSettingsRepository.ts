@@ -26,6 +26,22 @@ const SETTINGS_KEY_MAP: Record<keyof SystemSettingsValues, string> = {
   externalShippingCost: 'external_shipping_cost',
   baseState: 'base_state',
   nearbyMunicipalities: 'nearby_municipalities',
+  donationMinAmount: 'donation_min_amount',
+  donationQuickAmounts: 'donation_quick_amounts',
+  donationBannerUrl: 'donation_banner_url',
+  donationTitle: 'donation_title',
+  donationDescription: 'donation_description',
+  storeAddress: 'store_address',
+  localEta: 'local_eta',
+  blockedContinents: 'blocked_shipping_continents',
+  blockedCountries: 'blocked_shipping_countries',
+  blockedRegions: 'blocked_shipping_regions',
+  shippingUnavailableMessage: 'shipping_unavailable_message',
+  socialFacebookUrl: 'social_facebook_url',
+  socialInstagramUrl: 'social_instagram_url',
+  socialTwitterUrl: 'social_twitter_url',
+  supportWhatsapp: 'support_whatsapp',
+  supportEmail: 'support_email',
 };
 
 const DEVELOPER_CODE_HASH_KEY = 'developer_code_hash';
@@ -52,6 +68,23 @@ export class SystemSettingsRepository implements ISystemSettingsRepository {
       externalShippingCost: Number(valueByKey.get(SETTINGS_KEY_MAP.externalShippingCost)),
       baseState: String(valueByKey.get(SETTINGS_KEY_MAP.baseState)),
       nearbyMunicipalities: (valueByKey.get(SETTINGS_KEY_MAP.nearbyMunicipalities) as string[]) ?? [],
+      donationMinAmount: Number(valueByKey.get(SETTINGS_KEY_MAP.donationMinAmount) ?? 10),
+      donationQuickAmounts: (valueByKey.get(SETTINGS_KEY_MAP.donationQuickAmounts) as number[]) ?? [10, 20, 30],
+      donationBannerUrl: valueByKey.get(SETTINGS_KEY_MAP.donationBannerUrl) as string | undefined,
+      donationTitle: (valueByKey.get(SETTINGS_KEY_MAP.donationTitle) as string) || 'Apoya el Proyecto',
+      donationDescription: (valueByKey.get(SETTINGS_KEY_MAP.donationDescription) as string) || 'Tu aportación nos ayuda a mantener los servidores encendidos. 💖',
+      storeAddress: (valueByKey.get(SETTINGS_KEY_MAP.storeAddress) as string) || 'Calle 60 #123 x 45 y 47, Centro, Mérida, Yucatán',
+      localEta: (valueByKey.get(SETTINGS_KEY_MAP.localEta) as string) || 'Llega hoy mismo',
+      blockedContinents: (valueByKey.get(SETTINGS_KEY_MAP.blockedContinents) as string[]) ?? [],
+      blockedCountries: (valueByKey.get(SETTINGS_KEY_MAP.blockedCountries) as string[]) ?? [],
+      blockedRegions: (valueByKey.get(SETTINGS_KEY_MAP.blockedRegions) as SystemSettingsValues['blockedRegions']) ?? [],
+      shippingUnavailableMessage: (valueByKey.get(SETTINGS_KEY_MAP.shippingUnavailableMessage) as string)
+        || 'Lo sentimos, por el momento no podemos realizar entregas en la zona de tu domicilio. Esperamos ampliar nuestra cobertura muy pronto.',
+      socialFacebookUrl: (valueByKey.get(SETTINGS_KEY_MAP.socialFacebookUrl) as string) || 'https://facebook.com',
+      socialInstagramUrl: (valueByKey.get(SETTINGS_KEY_MAP.socialInstagramUrl) as string) || 'https://instagram.com',
+      socialTwitterUrl: (valueByKey.get(SETTINGS_KEY_MAP.socialTwitterUrl) as string) || 'https://twitter.com',
+      supportWhatsapp: (valueByKey.get(SETTINGS_KEY_MAP.supportWhatsapp) as string) || '+52 999 123 4567',
+      supportEmail: (valueByKey.get(SETTINGS_KEY_MAP.supportEmail) as string) || 'hola@animayuks.com',
     };
   }
 
@@ -75,6 +108,9 @@ export class SystemSettingsRepository implements ISystemSettingsRepository {
     // BRECHA-16: invalidar la caché para que el cambio de tarifas del admin
     // aplique de inmediato en el checkout, sin esperar a que expire el TTL.
     try {
+      if (this.cache.status !== 'ready') {
+        throw new Error(`Redis no disponible (estado: ${this.cache.status})`);
+      }
       await this.cache.del(CHECKOUT_CONFIG_CACHE_KEY);
     } catch (err) {
       console.error('[SystemSettingsRepository] No se pudo invalidar la caché de checkout:', err);
@@ -86,9 +122,11 @@ export class SystemSettingsRepository implements ISystemSettingsRepository {
   async getCheckoutConfig(): Promise<SystemSettingsValues> {
     // 1. Intentar la caché (TTL corto).
     try {
-      const cached = await this.cache.get(CHECKOUT_CONFIG_CACHE_KEY);
-      if (cached) {
-        return JSON.parse(cached) as SystemSettingsValues;
+      if (this.cache.status === 'ready') {
+        const cached = await this.cache.get(CHECKOUT_CONFIG_CACHE_KEY);
+        if (cached) {
+          return JSON.parse(cached) as SystemSettingsValues;
+        }
       }
     } catch (err) {
       // Un fallo de caché nunca debe romper el checkout: se cae a la BD.
@@ -98,7 +136,9 @@ export class SystemSettingsRepository implements ISystemSettingsRepository {
     // 2. Miss: leer de BD y repoblar la caché con TTL.
     const config = await this.getAll();
     try {
-      await this.cache.set(CHECKOUT_CONFIG_CACHE_KEY, JSON.stringify(config), 'EX', CHECKOUT_CONFIG_TTL_SECONDS);
+      if (this.cache.status === 'ready') {
+        await this.cache.set(CHECKOUT_CONFIG_CACHE_KEY, JSON.stringify(config), 'EX', CHECKOUT_CONFIG_TTL_SECONDS);
+      }
     } catch (err) {
       console.error('[SystemSettingsRepository] Error escribiendo caché de checkout:', err);
     }

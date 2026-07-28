@@ -39,6 +39,11 @@ export class BannerRepository implements IBannerRepository {
         title: data.title,
         image_url: data.imageUrl,
         link_url: data.linkUrl ?? null,
+        tag: data.tag ?? null,
+        description: data.description ?? null,
+        video_url: data.videoUrl ?? null,
+        accent_color: data.accentColor ?? null,
+        button_text: data.buttonText ?? null,
         position: data.position ?? 0,
         is_active: data.isActive ?? true,
         starts_at: data.startsAt ? new Date(data.startsAt) : null,
@@ -54,6 +59,11 @@ export class BannerRepository implements IBannerRepository {
     if (data.title !== undefined) updates['title'] = data.title;
     if (data.imageUrl !== undefined) updates['image_url'] = data.imageUrl;
     if (data.linkUrl !== undefined) updates['link_url'] = data.linkUrl;
+    if (data.tag !== undefined) updates['tag'] = data.tag;
+    if (data.description !== undefined) updates['description'] = data.description;
+    if (data.videoUrl !== undefined) updates['video_url'] = data.videoUrl;
+    if (data.accentColor !== undefined) updates['accent_color'] = data.accentColor;
+    if (data.buttonText !== undefined) updates['button_text'] = data.buttonText;
     if (data.position !== undefined) updates['position'] = data.position;
     if (data.isActive !== undefined) updates['is_active'] = data.isActive;
     if (data.startsAt !== undefined) updates['starts_at'] = data.startsAt ? new Date(data.startsAt) : null;
@@ -78,6 +88,11 @@ export class BannerRepository implements IBannerRepository {
     title: string;
     image_url: string;
     link_url: string | null;
+    tag: string | null;
+    description: string | null;
+    video_url: string | null;
+    accent_color: string | null;
+    button_text?: string | null;
     position: number;
     is_active: boolean;
     starts_at: Date | null;
@@ -90,6 +105,11 @@ export class BannerRepository implements IBannerRepository {
       title: row.title,
       imageUrl: row.image_url,
       linkUrl: row.link_url,
+      tag: row.tag,
+      description: row.description,
+      videoUrl: row.video_url,
+      accentColor: row.accent_color,
+      buttonText: row.button_text ?? null,
       position: row.position,
       isActive: row.is_active,
       startsAt: row.starts_at,

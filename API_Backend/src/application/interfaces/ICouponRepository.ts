@@ -1,5 +1,6 @@
 import { Coupon } from '../../domain/entities/Coupon';
 import { CreateCouponDTO, UpdateCouponDTO } from '../../domain/types/AdminCouponDTOs';
+import { AdminAuditContext } from '../../domain/types/AdminTypes';
 
 /**
  * Puerto (Interfaz) del Repositorio de Cupones.
@@ -44,14 +45,14 @@ export interface ICouponRepository {
   findCouponById(id: string): Promise<Coupon | null>;
 
   /** Crea un cupón. Lanza error de BD si el código ya existe (UNIQUE). */
-  createCoupon(data: CreateCouponDTO): Promise<Coupon>;
+  createCoupon(data: CreateCouponDTO, context: AdminAuditContext): Promise<Coupon>;
 
   /**
    * Actualiza campos de un cupón. Devuelve null si el id no existe.
    * Lanza error de BD si el nuevo código entra en conflicto (UNIQUE).
    */
-  updateCoupon(id: string, data: UpdateCouponDTO): Promise<Coupon | null>;
+  updateCoupon(id: string, data: UpdateCouponDTO, context: AdminAuditContext): Promise<Coupon | null>;
 
   /** Invierte el flag `is_active` del cupón. Devuelve null si el id no existe. */
-  toggleActive(id: string): Promise<Coupon | null>;
+  toggleActive(id: string, context: AdminAuditContext): Promise<Coupon | null>;
 }

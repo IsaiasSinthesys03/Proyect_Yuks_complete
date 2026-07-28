@@ -10,6 +10,13 @@ export interface PublicCheckoutConfigDTO {
   localShippingCost: number;
   externalShippingCost: number;
   minPurchaseAmount: number;
+  donationMinAmount: number;
+  donationQuickAmounts: number[];
+  donationBannerUrl?: string;
+  donationTitle: string;
+  donationDescription: string;
+  storeAddress: string;
+  localEta: string;
   /** Multiplicadores del umbral por tier (BRONZE implícito = 1.0). */
   tierMultipliers: Record<string, number>;
 }
@@ -40,6 +47,13 @@ export class GetPublicCheckoutConfigUseCase {
       localShippingCost: config.localShippingCost,
       externalShippingCost: config.externalShippingCost,
       minPurchaseAmount: config.minPurchaseAmount,
+      donationMinAmount: config.donationMinAmount,
+      donationQuickAmounts: config.donationQuickAmounts,
+      donationBannerUrl: config.donationBannerUrl,
+      donationTitle: config.donationTitle,
+      donationDescription: config.donationDescription,
+      storeAddress: config.storeAddress,
+      localEta: config.localEta,
       tierMultipliers: { BRONZE: 1.0, SILVER: silver, GOLD: gold, PLATINUM: platinum },
     };
   }

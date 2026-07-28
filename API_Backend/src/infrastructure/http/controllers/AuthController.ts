@@ -317,13 +317,16 @@ export class AuthController {
         refreshTokenCookieOptions(7 * 24 * 60 * 60)
       );
 
-      return reply.status(200).send({
-        statusCode: 200,
-        message: 'Inicio de sesión con Google exitoso.',
-        data: publicResponse,
-      });
+      const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173')
+        .split(',')[0]
+        .trim();
+
+      return reply.redirect(frontendUrl);
     } catch (error) {
-      return this.handleError(error, reply);
+      const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173')
+        .split(',')[0]
+        .trim();
+      return reply.redirect(`${frontendUrl}?auth_error=oauth_failed`);
     }
   }
 

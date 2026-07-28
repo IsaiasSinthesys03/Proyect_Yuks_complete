@@ -66,9 +66,10 @@ export class ProcessDonationUseCase {
     const donation = await this.donationRepository.create({
       stripePaymentIntentId: paymentIntentId,
       amount: dto.amount,
-      donorEmail: dto.donorEmail,
-      idempotencyKey: dto.idempotencyKey,
-    });
+        donorEmail: dto.donorEmail,
+        idempotencyKey: dto.idempotencyKey,
+        userId: dto.userId,
+      });
 
     // Paso 6: Retornar clientSecret al frontend
     return {

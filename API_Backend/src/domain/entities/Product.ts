@@ -13,14 +13,16 @@
  */
 export interface Product {
   readonly id: string;
-  readonly categoryId: string;
+  readonly categoryIds: string[];
   readonly name: string;
   readonly description: string | null;
   readonly price: number;
+  readonly status: string; // 'ACTIVE' | 'DRAFT'
   readonly hasVirtualReward: boolean;
   readonly isDeleted: boolean;
   readonly version: number;
   readonly imageUrl: string | null;
+  readonly galleryUrls: string[];
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -32,5 +34,5 @@ export interface Product {
  * necesita ver "Playeras" en lugar del UUID de la categoría.
  */
 export interface ProductWithCategory extends Product {
-  readonly categoryName: string;
+  readonly categoryNames?: string[];
 }

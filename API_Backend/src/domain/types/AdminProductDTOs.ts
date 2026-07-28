@@ -3,19 +3,21 @@
 // ==========================================
 
 export interface CreateProductDTO {
-  categoryId: string;
+  categoryIds: string[];
   name: string;
   description?: string | null;
   price: number;
+  status?: string;
   hasVirtualReward?: boolean;
 }
 
 /** `version` es obligatorio — garantiza OCC en el UPDATE (Q14, WHERE version = N). */
 export interface UpdateProductDTO {
-  categoryId?: string;
+  categoryIds?: string[];
   name?: string;
   description?: string | null;
   price?: number;
+  status?: string;
   hasVirtualReward?: boolean;
   version: number;
 }

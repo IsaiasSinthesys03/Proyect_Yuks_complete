@@ -3,6 +3,7 @@ import { IAuditLogRepository } from '../../../application/interfaces/IAuditLogRe
 import { AuditLog, AuditAction } from '../../../domain/entities/AuditLog';
 import { AuditLogFilterDTO, AuditLogDTO } from '../../../domain/types/AuditLogDTOs';
 import { PaginatedResponseDTO } from '../../../domain/types/ProductDTOs';
+import { sql } from 'kysely';
 
 /**
  * Implementación concreta de IAuditLogRepository usando Kysely.
@@ -42,6 +43,9 @@ export class AuditLogRepository implements IAuditLogRepository {
     }
     if (filter.entityType) {
       baseQuery = baseQuery.where('entity_type', '=', filter.entityType);
+    }
+    if (filter.date) {
+      baseQuery = baseQuery.where(sql<boolean>`DATE(created_at) = ${filter.date}`);
     }
 
     const countResult = await baseQuery

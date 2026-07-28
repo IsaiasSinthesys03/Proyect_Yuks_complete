@@ -115,12 +115,19 @@ import { S3MediaStorageService } from './infrastructure/services/media/S3MediaSt
 
 // --- Casos de Uso: CMS Catálogo (Fase 22) ---
 import { UploadProductImageUseCase } from './application/use_cases/admin/media/UploadProductImageUseCase';
+import { UploadBannerImageUseCase } from './application/use_cases/admin/media/UploadBannerImageUseCase';
+import { UploadBannerVideoUseCase } from './application/use_cases/admin/media/UploadBannerVideoUseCase';
+import { UploadDonationBannerUseCase } from './application/use_cases/admin/media/UploadDonationBannerUseCase';
+import { UploadProductGalleryImageUseCase } from './application/use_cases/admin/media/UploadProductGalleryImageUseCase';
+import { RemoveProductGalleryImageUseCase } from './application/use_cases/admin/media/RemoveProductGalleryImageUseCase';
 import { CreateProductUseCase } from './application/use_cases/admin/catalog/CreateProductUseCase';
 import { UpdateProductUseCase } from './application/use_cases/admin/catalog/UpdateProductUseCase';
+import { GetAdminProductDetailUseCase } from './application/use_cases/admin/catalog/GetAdminProductDetailUseCase';
 import { SoftDeleteProductUseCase } from './application/use_cases/admin/catalog/SoftDeleteProductUseCase';
 import { CreateVariantUseCase } from './application/use_cases/admin/catalog/CreateVariantUseCase';
 import { UpdateVariantUseCase } from './application/use_cases/admin/catalog/UpdateVariantUseCase';
 import { AdjustVariantStockUseCase } from './application/use_cases/admin/catalog/AdjustVariantStockUseCase';
+import { SetAbsoluteStockUseCase } from './application/use_cases/admin/catalog/SetAbsoluteStockUseCase';
 import { FindOrCreateCategoryUseCase } from './application/use_cases/admin/catalog/FindOrCreateCategoryUseCase';
 
 // --- Casos de Uso: Seguridad Administrativa (Fase 21) ---
@@ -138,6 +145,7 @@ import { DonationRepository } from './infrastructure/database/repositories/Donat
 import { ProcessDonationUseCase } from './application/use_cases/donations/ProcessDonationUseCase';
 import { ConfirmDonationWebhookUseCase } from './application/use_cases/donations/ConfirmDonationWebhookUseCase';
 import { AdminListDonationsUseCase } from './application/use_cases/donations/AdminListDonationsUseCase';
+import { GetMyDonationsUseCase } from './application/use_cases/donations/GetMyDonationsUseCase';
 
 // --- Casos de Uso: CMS Cupones, Pedidos Kanban, CRM Usuarios (Fase 24) ---
 import { CreateCouponUseCase } from './application/use_cases/admin/coupons/CreateCouponUseCase';
@@ -146,6 +154,7 @@ import { ToggleCouponUseCase } from './application/use_cases/admin/coupons/Toggl
 import { ListAllOrdersAdminUseCase } from './application/use_cases/admin/orders/ListAllOrdersAdminUseCase';
 import { UpdateOrderStatusUseCase } from './application/use_cases/admin/orders/UpdateOrderStatusUseCase';
 import { ListAllUsersUseCase } from './application/use_cases/admin/users/ListAllUsersUseCase';
+import { GetAdminUserLedgerUseCase } from './application/use_cases/admin/users/GetAdminUserLedgerUseCase';
 import { BanUserUseCase } from './application/use_cases/admin/users/BanUserUseCase';
 import { UnbanUserUseCase } from './application/use_cases/admin/users/UnbanUserUseCase';
 import { ListCouponsUseCase, GetCouponByIdUseCase } from './application/use_cases/admin/coupons/ReadCouponUseCases';
@@ -268,8 +277,19 @@ import { buildRealtimeRoutes } from './infrastructure/http/routes/realtimeRoutes
 // --- Rutas: CMS Contenido + Analytics (Fase 30) ---
 import { buildAdminBannerRoutes } from './infrastructure/http/routes/adminBannerRoutes';
 import { buildAdminLegalRoutes } from './infrastructure/http/routes/adminLegalRoutes';
+import { buildAdminYoutubeRoutes } from './infrastructure/http/routes/adminYoutubeRoutes';
 import { buildAdminAnalyticsRoutes } from './infrastructure/http/routes/adminAnalyticsRoutes';
 import { buildPublicContentRoutes } from './infrastructure/http/routes/publicContentRoutes';
+import { UploadLegalPdfUseCase } from './application/use_cases/admin/legal/UploadLegalPdfUseCase';
+import { YoutubeVideoRepository } from './infrastructure/database/repositories/YoutubeVideoRepository';
+import {
+  CreateYoutubeVideoUseCase,
+  UpdateYoutubeVideoUseCase,
+  DeleteYoutubeVideoUseCase,
+  ListYoutubeVideosUseCase,
+  ReorderYoutubeVideosUseCase
+} from './application/use_cases/admin/youtube/YoutubeVideoUseCases';
+import { AdminYoutubeVideoController } from './infrastructure/http/controllers/AdminYoutubeVideoController';
 
 // --- Rutas: Wishlist + Reportes (Fase 31) ---
 import { buildWishlistRoutes } from './infrastructure/http/routes/wishlistRoutes';
@@ -302,8 +322,8 @@ const GAME_API_M2M_TOKEN = process.env.GAME_API_M2M_TOKEN || '';
 const ADMIN_JWT_EXPIRES_IN = process.env.ADMIN_JWT_EXPIRES_IN || '8h';
 const S3_BUCKET = process.env.S3_BUCKET || '';
 const S3_REGION = process.env.S3_REGION || 'us-east-1';
-const S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID || '';
-const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY || '';
+const S3_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID || process.env.S3_ACCESS_KEY_ID || '';
+const S3_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY || process.env.S3_SECRET_ACCESS_KEY || '';
 // Fase 28 — Email transaccional
 const EMAIL_API_KEY = process.env.EMAIL_API_KEY || '';
 const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@animayuks.com';
@@ -447,6 +467,7 @@ async function main(): Promise<void> {
   const bannerRepository = new BannerRepository();
   const legalDocumentRepository = new LegalDocumentRepository();
   const analyticsRepository = new AnalyticsRepository();
+  const youtubeVideoRepository = new YoutubeVideoRepository(db);
   // Fase 31 — Wishlist + Reportes
   const wishlistRepository = new WishlistRepository();
   const reportRepository = new ReportRepository();
@@ -592,6 +613,7 @@ async function main(): Promise<void> {
     paymentGateway
   );
   const adminListDonationsUseCase = new AdminListDonationsUseCase(donationRepository);
+  const getMyDonationsUseCase = new GetMyDonationsUseCase(donationRepository);
 
   // 3.11 Casos de Uso — Pedidos / Webhook / Game Bridge (Fase 17)
   // Fase 31: la asignación de XP se inyecta en el webhook — la gamificación
@@ -603,7 +625,6 @@ async function main(): Promise<void> {
   );
   const webhookReconciliationUseCase = new WebhookPaymentReconciliationUseCase(
     orderRepository,
-    productRepository,
     paymentGateway,
     awardExperienceUseCase,
     userRepository,
@@ -624,6 +645,9 @@ async function main(): Promise<void> {
   // 3.11.1 Casos de Uso — CMS Catálogo (Fases 22-23)
   const adminProductRepository = new AdminProductRepository();
 
+  const S3_ENDPOINT = process.env.S3_ENDPOINT || '';
+  const S3_PUBLIC_URL = process.env.S3_PUBLIC_URL || '';
+
   // Servicio S3: constructor lazy — no lanza si faltan credenciales en dev.
   // El error emerge al primer upload real (HTTP 503 al admin, no crash del server).
   const mediaStorageService = new S3MediaStorageService({
@@ -631,9 +655,11 @@ async function main(): Promise<void> {
     region: S3_REGION,
     accessKeyId: S3_ACCESS_KEY_ID,
     secretAccessKey: S3_SECRET_ACCESS_KEY,
+    endpoint: S3_ENDPOINT,
+    publicUrl: S3_PUBLIC_URL,
   });
   if (!S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
-    console.warn('⚠️  S3 no configurado (S3_BUCKET / S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY). Los uploads de imagen fallarán con HTTP 503 hasta configurar las credenciales.');
+    console.warn('⚠️  S3/R2 no configurado completamente. Los uploads de imagen podrían fallar.');
   }
   const uploadProductImageUseCase = new UploadProductImageUseCase(adminProductRepository, mediaStorageService);
   const createProductUseCase = new CreateProductUseCase(adminProductRepository);
@@ -669,12 +695,19 @@ async function main(): Promise<void> {
   // Fase 30 — Textos Legales
   const listLegalDocumentsUseCase = new ListLegalDocumentsUseCase(legalDocumentRepository);
   const getLegalDocumentUseCase = new GetLegalDocumentUseCase(legalDocumentRepository);
-  const updateLegalDocumentUseCase = new UpdateLegalDocumentUseCase(legalDocumentRepository);
+  const updateLegalDocumentUseCase = new UpdateLegalDocumentUseCase(legalDocumentRepository, auditLogRepository);
+  const uploadLegalPdfUseCase = new UploadLegalPdfUseCase(legalDocumentRepository, mediaStorageService, auditLogRepository);
 
   // Fase 30 — Analytics
   const getDashboardSummaryUseCase = new GetDashboardSummaryUseCase(analyticsRepository);
   const getSalesOverTimeUseCase = new GetSalesOverTimeUseCase(analyticsRepository);
   const getTopProductsAnalyticsUseCase = new GetTopProductsAnalyticsUseCase(analyticsRepository);
+
+  const createYoutubeVideoUseCase = new CreateYoutubeVideoUseCase(youtubeVideoRepository, auditLogRepository);
+  const updateYoutubeVideoUseCase = new UpdateYoutubeVideoUseCase(youtubeVideoRepository, auditLogRepository);
+  const deleteYoutubeVideoUseCase = new DeleteYoutubeVideoUseCase(youtubeVideoRepository, auditLogRepository);
+  const listYoutubeVideosUseCase = new ListYoutubeVideosUseCase(youtubeVideoRepository);
+  const reorderYoutubeVideosUseCase = new ReorderYoutubeVideosUseCase(youtubeVideoRepository);
 
   // Fase 31 — Wishlist, Reportes, Developer Code
   const addToWishlistUseCase = new AddToWishlistUseCase(wishlistRepository, productRepository);
@@ -705,7 +738,8 @@ async function main(): Promise<void> {
     wsServer, // Notificación híbrida (C-01): email encolado + WS en tiempo real
   );
   const listAllUsersUseCase = new ListAllUsersUseCase(userRepository);
-  const banUserUseCase = new BanUserUseCase(userRepository);
+  const getAdminUserLedgerUseCase = new GetAdminUserLedgerUseCase(userRepository, walletRepository);
+  const banUserUseCase = new BanUserUseCase(userRepository, refreshTokenRepository);
   const unbanUserUseCase = new UnbanUserUseCase(userRepository);
 
   // 3.11.2 Casos de Uso — Seguridad Administrativa (Fase 21)
@@ -722,7 +756,7 @@ async function main(): Promise<void> {
   const enable2faUseCase = new Enable2faUseCase(userRepository, totpService);
   const getAuditLogsUseCase = new GetAuditLogsUseCase(auditLogRepository);
   const getSystemSettingsUseCase = new GetSystemSettingsUseCase(systemSettingsRepository);
-  const updateSystemSettingsUseCase = new UpdateSystemSettingsUseCase(systemSettingsRepository);
+  const updateSystemSettingsUseCase = new UpdateSystemSettingsUseCase(systemSettingsRepository, auditLogRepository);
 
   // 3.12 Controladores
   const authController = new AuthController(
@@ -773,6 +807,10 @@ async function main(): Promise<void> {
     updateSystemSettingsUseCase,
     changeDeveloperCodeUseCase,
   );
+  
+  const getAdminProductDetailUseCase = new GetAdminProductDetailUseCase(adminProductRepository);
+  const setAbsoluteStockUseCase = new SetAbsoluteStockUseCase(adminProductRepository);
+  
   const adminProductController = new AdminProductController(
     createProductUseCase,
     updateProductUseCase,
@@ -780,9 +818,25 @@ async function main(): Promise<void> {
     createVariantUseCase,
     updateVariantUseCase,
     adjustVariantStockUseCase,
+    setAbsoluteStockUseCase,
+    getAdminProductDetailUseCase,
   );
   const adminCategoryController = new AdminCategoryController(findOrCreateCategoryUseCase);
-  const adminMediaController = new AdminMediaController(uploadProductImageUseCase);
+  
+  const uploadBannerImageUseCase = new UploadBannerImageUseCase(bannerRepository, mediaStorageService);
+  const uploadBannerVideoUseCase = new UploadBannerVideoUseCase(bannerRepository, mediaStorageService);
+  const uploadDonationBannerUseCase = new UploadDonationBannerUseCase(systemSettingsRepository, mediaStorageService, auditLogRepository);
+  const uploadProductGalleryImageUseCase = new UploadProductGalleryImageUseCase(adminProductRepository, mediaStorageService);
+  const removeProductGalleryImageUseCase = new RemoveProductGalleryImageUseCase(adminProductRepository);
+
+  const adminMediaController = new AdminMediaController(
+    uploadProductImageUseCase, 
+    uploadBannerImageUseCase,
+    uploadBannerVideoUseCase,
+    uploadDonationBannerUseCase,
+    uploadProductGalleryImageUseCase,
+    removeProductGalleryImageUseCase
+  );
   const adminCouponController = new AdminCouponController(
     createCouponUseCase,
     updateCouponUseCase,
@@ -796,13 +850,14 @@ async function main(): Promise<void> {
   );
   const adminUserCrmController = new AdminUserCrmController(
     listAllUsersUseCase,
+    getAdminUserLedgerUseCase,
     banUserUseCase,
     unbanUserUseCase,
   );
   const adminRefundController = new AdminRefundController(manualRefundUseCase);
 
   // Controladores: Donaciones (Fase 27)
-  const donationController = new DonationController(processDonationUseCase);
+  const donationController = new DonationController(processDonationUseCase, getMyDonationsUseCase);
   const adminDonationController = new AdminDonationController(adminListDonationsUseCase);
 
   // Controladores: CMS Contenido + Analytics (Fase 30)
@@ -816,6 +871,7 @@ async function main(): Promise<void> {
     listLegalDocumentsUseCase,
     getLegalDocumentUseCase,
     updateLegalDocumentUseCase,
+    uploadLegalPdfUseCase,
   );
   const adminAnalyticsController = new AdminAnalyticsController(
     getDashboardSummaryUseCase,
@@ -825,6 +881,13 @@ async function main(): Promise<void> {
   const publicContentController = new PublicContentController(
     getActiveBannersUseCase,
     getLegalDocumentUseCase,
+  );
+  const adminYoutubeVideoController = new AdminYoutubeVideoController(
+    createYoutubeVideoUseCase,
+    updateYoutubeVideoUseCase,
+    deleteYoutubeVideoUseCase,
+    listYoutubeVideosUseCase,
+    reorderYoutubeVideosUseCase
   );
 
   // Controladores: Wishlist + Reportes (Fase 31)
@@ -864,9 +927,8 @@ async function main(): Promise<void> {
   fastify.register(buildSystemSettingsRoutes(systemSettingsController), { prefix: '/api/admin/settings' });
   fastify.register(buildAdminProductRoutes(adminProductController), { prefix: '/api/admin/products' });
   fastify.register(buildAdminCategoryRoutes(adminCategoryController), { prefix: '/api/admin/categories' });
-  // Rutas de media se registran sobre el mismo prefijo /api/admin/products para
-  // que la ruta quede POST /api/admin/products/:id/image sin duplicar prefijo.
-  fastify.register(buildAdminMediaRoutes(adminMediaController), { prefix: '/api/admin/products' });
+  // Rutas de media se registran sobre el prefijo /api/admin.
+  fastify.register(buildAdminMediaRoutes(adminMediaController), { prefix: '/api/admin' });
   fastify.register(buildAdminCouponRoutes(adminCouponController),         { prefix: '/api/admin/coupons' });
   fastify.register(buildAdminOrderAdminRoutes(adminOrderAdminController), { prefix: '/api/admin/orders' });
   fastify.register(buildAdminUserCrmRoutes(adminUserCrmController),       { prefix: '/api/admin/users' });
@@ -885,6 +947,7 @@ async function main(): Promise<void> {
 
   // CMS Contenido + Analytics (Fase 30):
   fastify.register(buildAdminBannerRoutes(adminBannerController),         { prefix: '/api/admin/banners' });
+  fastify.register(buildAdminYoutubeRoutes(adminYoutubeVideoController),  { prefix: '/api/admin/youtube' });
   fastify.register(buildAdminLegalRoutes(adminLegalController),           { prefix: '/api/admin/legal' });
   fastify.register(buildAdminAnalyticsRoutes(adminAnalyticsController),   { prefix: '/api/admin/analytics' });
   // Contenido público (storefront, sin auth): banners activos + textos legales.

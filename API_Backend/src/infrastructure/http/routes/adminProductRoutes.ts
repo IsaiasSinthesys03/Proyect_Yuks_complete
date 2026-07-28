@@ -24,6 +24,11 @@ export function buildAdminProductRoutes(controller: AdminProductController) {
     // Productos
     // ==========================================
 
+    /** Obtener detalle de producto (para formulario de edición admin) */
+    fastify.get('/:id', async (request, reply) => {
+      return controller.getProduct(request, reply);
+    });
+
     /** Crear producto */
     fastify.post('/', async (request, reply) => {
       return controller.createProduct(request, reply);
@@ -56,6 +61,11 @@ export function buildAdminProductRoutes(controller: AdminProductController) {
     /** Ajustar stock por delta (positivo o negativo) */
     fastify.patch('/:id/variants/:variantId/stock', async (request, reply) => {
       return controller.adjustStock(request, reply);
+    });
+
+    /** Sobrescribir stock de forma absoluta (Fase 50 - Admin CRUD) */
+    fastify.put('/:id/variants/:variantId/absolute-stock', async (request, reply) => {
+      return controller.setAbsoluteStock(request, reply);
     });
   };
 }

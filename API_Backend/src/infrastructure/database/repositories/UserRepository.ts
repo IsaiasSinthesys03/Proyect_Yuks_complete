@@ -3,6 +3,12 @@ import { IUserRepository } from '../../../application/interfaces/IUserRepository
 import { User, UserRole } from '../../../domain/entities/User';
 import { Profile, TierLevel } from '../../../domain/entities/Profile';
 import { PaginatedResponseDTO } from '../../../domain/types/ProductDTOs';
+import { AdminUserCrmDTO } from '../../../domain/types/AdminUserDTOs';
+import { AdminAuditContext } from '../../../domain/types/AdminTypes';
+import { withAdminAuditContext } from '../withAdminAuditContext';
+
+/** Estados que representan una compra confirmada, alineados con AnalyticsRepository. */
+const SOLD_STATUSES = ['PAID', 'PREPARING', 'SHIPPED', 'DELIVERING', 'DELIVERED'];
 
 /**
  * Implementación concreta de IUserRepository usando Kysely.
@@ -128,25 +134,65 @@ export class UserRepository implements IUserRepository {
     });
   }
 
-  async findAllPaginated(page: number, limit: number): Promise<PaginatedResponseDTO<User>> {
+  async findAllPaginated(page: number, limit: number): Promise<PaginatedResponseDTO<AdminUserCrmDTO>> {
     const offset = (page - 1) * limit;
 
     const countResult = await db
       .selectFrom('users')
       .select((eb) => eb.fn.countAll<number>().as('total'))
+      .where('role', '=', 'CLIENT')
       .executeTakeFirstOrThrow();
     const total = Number(countResult.total);
 
     const rows = await db
       .selectFrom('users')
-      .selectAll()
-      .orderBy('created_at', 'desc')
+      .leftJoin('profiles', 'profiles.user_id', 'users.id')
+      .leftJoin('wallet', 'wallet.user_id', 'users.id')
+      .select((eb) => [
+        'users.id as id',
+        'users.email as email',
+        'users.created_at as createdAt',
+        'users.privacy_accepted_at as privacyAcceptedAt',
+        'users.is_banned as isBanned',
+        'profiles.first_name as firstName',
+        'profiles.last_name as lastName',
+        'wallet.balance as walletBalance',
+        'wallet.expires_at as walletExpiresAt',
+        eb
+          .selectFrom('orders')
+          .select((ordersEb) => ordersEb.fn.countAll<number>().as('count'))
+          .whereRef('orders.user_id', '=', 'users.id')
+          .where('orders.status', 'in', SOLD_STATUSES)
+          .as('ticketCount'),
+        eb
+          .selectFrom('orders')
+          .select((ordersEb) => ordersEb.fn.sum<string>('orders.total_paid').as('total'))
+          .whereRef('orders.user_id', '=', 'users.id')
+          .where('orders.status', 'in', SOLD_STATUSES)
+          .as('purchaseTotal'),
+      ])
+      .where('users.role', '=', 'CLIENT')
+      .orderBy('users.created_at', 'desc')
       .limit(limit)
       .offset(offset)
       .execute();
 
     return {
-      data: rows.map((row) => this.mapRowToUser(row)),
+      data: rows.map((row) => {
+        const fullName = [row.firstName, row.lastName].filter(Boolean).join(' ').trim();
+        return {
+          id: row.id,
+          name: fullName || row.email,
+          email: row.email,
+          createdAt: row.createdAt,
+          privacyAcceptedAt: row.privacyAcceptedAt,
+          isBanned: row.isBanned,
+          walletBalance: row.walletBalance ? parseFloat(row.walletBalance) : 0,
+          walletExpiresAt: row.walletExpiresAt,
+          ticketCount: Number(row.ticketCount ?? 0),
+          purchaseTotal: row.purchaseTotal ? parseFloat(row.purchaseTotal) : 0,
+        };
+      }),
       total,
       page,
       limit,
@@ -154,24 +200,24 @@ export class UserRepository implements IUserRepository {
     };
   }
 
-  async banUser(userId: string): Promise<User> {
-    const row = await db
+  async banUser(userId: string, context: AdminAuditContext): Promise<User> {
+    const row = await withAdminAuditContext(context, (trx) => trx
       .updateTable('users')
       .set({ is_banned: true })
       .where('id', '=', userId)
       .returningAll()
-      .executeTakeFirstOrThrow();
+      .executeTakeFirstOrThrow());
 
     return this.mapRowToUser(row);
   }
 
-  async unbanUser(userId: string): Promise<User> {
-    const row = await db
+  async unbanUser(userId: string, context: AdminAuditContext): Promise<User> {
+    const row = await withAdminAuditContext(context, (trx) => trx
       .updateTable('users')
       .set({ is_banned: false })
       .where('id', '=', userId)
       .returningAll()
-      .executeTakeFirstOrThrow();
+      .executeTakeFirstOrThrow());
 
     return this.mapRowToUser(row);
   }

@@ -14,7 +14,7 @@ import { IMediaStorageService } from '../../../application/interfaces/IMediaStor
  * SEGURIDAD:
  * - Nunca expone credenciales en logs de error (el AWS SDK las oculta).
  * - Los archivos se guardan bajo el prefijo `products/` para separación lógica.
- * - El `ContentType` siempre es `image/webp` (forzado por el use case).
+ * - El `ContentType` lo fija cada caso de uso tras validar el archivo.
  *
  * PREREQUISITO BUCKET:
  * El bucket S3 debe tener política de lectura pública o usar CloudFront.
@@ -25,22 +25,23 @@ export class S3MediaStorageService implements IMediaStorageService {
   private readonly client: S3Client;
   private readonly bucket: string;
   private readonly region: string;
+  private readonly publicUrl: string;
 
   constructor(config: {
     region: string;
     bucket: string;
     accessKeyId: string;
     secretAccessKey: string;
+    endpoint?: string;
+    publicUrl?: string;
   }) {
     this.bucket = config.bucket;
     this.region = config.region;
+    this.publicUrl = config.publicUrl || `https://${config.bucket}.s3.${config.region}.amazonaws.com`;
 
-    // El S3Client se construye siempre — AWS SDK v3 no valida credenciales
-    // en el constructor. Si las credenciales son strings vacíos, el primer
-    // send() fallará con una excepción descriptiva de AWS, que el use case
-    // captura y relanza como StorageServiceError (HTTP 503).
     this.client = new S3Client({
       region: config.region,
+      endpoint: config.endpoint,
       credentials: {
         accessKeyId: config.accessKeyId,
         secretAccessKey: config.secretAccessKey,
@@ -49,7 +50,10 @@ export class S3MediaStorageService implements IMediaStorageService {
   }
 
   async upload(buffer: Buffer, filename: string, contentType: string): Promise<string> {
-    const key = `products/${filename}`;
+    // Para banners vs productos. Por ahora usamos la misma carpeta o basamos en el origen.
+    // De momento, como no sabemos de dónde viene en este nivel, pasaremos prefix si se necesita.
+    // Para no romper la interfaz, los pondremos todos juntos, o dejamos que el filename incluya la carpeta.
+    const key = filename.includes('/') ? filename : `media/${filename}`;
 
     await this.client.send(
       new PutObjectCommand({
@@ -57,19 +61,13 @@ export class S3MediaStorageService implements IMediaStorageService {
         Key: key,
         Body: buffer,
         ContentType: contentType,
-        // Para buckets con ACL habilitado — omitir si se usa bucket policy en su lugar.
-        // ACL: 'public-read',
       })
     );
 
     return this.buildPublicUrl(key);
   }
 
-  /**
-   * Construye la URL pública estándar de S3.
-   * Si se usa CloudFront, reemplazar este método con la URL de distribución.
-   */
   private buildPublicUrl(key: string): string {
-    return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${key}`;
+    return `${this.publicUrl}/${key}`;
   }
 }

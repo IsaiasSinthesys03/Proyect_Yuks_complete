@@ -5,7 +5,7 @@ import { UpdateAddressUseCase } from '../../../application/use_cases/addresses/U
 import { DeleteAddressUseCase } from '../../../application/use_cases/addresses/DeleteAddressUseCase';
 import { SetDefaultAddressUseCase } from '../../../application/use_cases/addresses/SetDefaultAddressUseCase';
 import { CreateAddressDTO, UpdateAddressDTO } from '../../../domain/types/AddressDTOs';
-import { AddressNotFoundError } from '../../../domain/errors/CheckoutErrors';
+import { AddressNotFoundError, InvalidShippingAddressError } from '../../../domain/errors/CheckoutErrors';
 
 /**
  * Controlador HTTP de la Libreta de Direcciones (REQ-FE-09, REQ-FE-17).
@@ -113,6 +113,10 @@ export class AddressController {
         error: 'Not Found',
         message: error.message,
       });
+      return;
+    }
+    if (error instanceof InvalidShippingAddressError) {
+      reply.status(422).send({ statusCode: 422, error: 'Unprocessable Entity', message: error.message });
       return;
     }
 

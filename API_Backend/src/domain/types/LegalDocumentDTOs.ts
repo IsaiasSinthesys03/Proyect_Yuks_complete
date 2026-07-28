@@ -7,4 +7,5 @@ export interface UpdateLegalDocumentDTO {
   title?: string;
   content?: string;
   version?: string;
+  pdfUrl?: string | null;
 }

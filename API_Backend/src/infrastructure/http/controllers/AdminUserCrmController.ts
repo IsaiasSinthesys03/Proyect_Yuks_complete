@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { ListAllUsersUseCase } from '../../../application/use_cases/admin/users/ListAllUsersUseCase';
 import { BanUserUseCase } from '../../../application/use_cases/admin/users/BanUserUseCase';
 import { UnbanUserUseCase } from '../../../application/use_cases/admin/users/UnbanUserUseCase';
+import { GetAdminUserLedgerUseCase } from '../../../application/use_cases/admin/users/GetAdminUserLedgerUseCase';
 import {
   SelfBanNotAllowedError,
   UserNotFoundAdminError,
@@ -10,6 +11,7 @@ import {
 export class AdminUserCrmController {
   constructor(
     private readonly listAllUsersUseCase: ListAllUsersUseCase,
+    private readonly getAdminUserLedgerUseCase: GetAdminUserLedgerUseCase,
     private readonly banUserUseCase: BanUserUseCase,
     private readonly unbanUserUseCase: UnbanUserUseCase,
   ) {}
@@ -20,6 +22,19 @@ export class AdminUserCrmController {
       const page  = query.page  ? parseInt(query.page,  10) : 1;
       const limit = query.limit ? parseInt(query.limit, 10) : 20;
       const result = await this.listAllUsersUseCase.execute(page, limit);
+      reply.status(200).send({ success: true, data: result });
+    } catch (err) {
+      this.handleError(err, reply);
+    }
+  }
+
+  async getLedger(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const { id } = request.params as { id: string };
+      const query = request.query as { page?: string; limit?: string };
+      const page = query.page ? parseInt(query.page, 10) : 1;
+      const limit = query.limit ? parseInt(query.limit, 10) : 20;
+      const result = await this.getAdminUserLedgerUseCase.execute(id, page, limit);
       reply.status(200).send({ success: true, data: result });
     } catch (err) {
       this.handleError(err, reply);
@@ -40,7 +55,8 @@ export class AdminUserCrmController {
   async unbanUser(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { id } = request.params as { id: string };
-      const user = await this.unbanUserUseCase.execute(id);
+      const context = request.adminContext!;
+      const user = await this.unbanUserUseCase.execute(id, context);
       reply.status(200).send({ success: true, data: user });
     } catch (err) {
       this.handleError(err, reply);

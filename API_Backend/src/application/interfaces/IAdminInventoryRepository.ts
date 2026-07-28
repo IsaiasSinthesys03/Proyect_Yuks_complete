@@ -7,8 +7,8 @@ import { InventoryItemDTO, AdminProductListItemDTO } from '../../domain/types/In
  */
 export interface IAdminInventoryRepository {
   /** Monitor Global de Inventario (CMS-FE-16): todas las variantes con su estatus de stock. */
-  findAllVariantsPaginated(page: number, limit: number): Promise<PaginatedResponseDTO<InventoryItemDTO>>;
+  findAllVariantsPaginated(page: number, limit: number, search?: string, status?: string): Promise<PaginatedResponseDTO<InventoryItemDTO>>;
 
   /** Listado admin de productos (CMS-FE-06): incluye descontinuados si `includeDeleted`. */
-  findAllProductsPaginated(page: number, limit: number, includeDeleted: boolean): Promise<PaginatedResponseDTO<AdminProductListItemDTO>>;
+  findAllProductsPaginated(page: number, limit: number, includeDeleted: boolean, search?: string, status?: string): Promise<PaginatedResponseDTO<AdminProductListItemDTO>>;
 }

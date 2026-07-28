@@ -26,7 +26,7 @@ export class GetProductsUseCase {
 
     const sanitizedQuery: GetProductsQueryDTO = {
       search: query.search?.trim() || undefined,
-      categoryId: query.categoryId || undefined,
+      categoryIds: query.categoryIds || undefined,
       // Fase 33: los filtros de precio y personaje DEBEN propagarse al repositorio.
       minPrice: sanitizePrice(query.minPrice),
       maxPrice: sanitizePrice(query.maxPrice),

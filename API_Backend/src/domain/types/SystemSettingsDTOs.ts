@@ -13,6 +13,22 @@ export interface SystemSettingsValues {
   externalShippingCost: number;
   baseState: string;
   nearbyMunicipalities: string[];
+  donationMinAmount: number;
+  donationQuickAmounts: number[];
+  donationBannerUrl?: string;
+  donationTitle: string;
+  donationDescription: string;
+  storeAddress: string;
+  localEta: string;
+  blockedContinents: string[];
+  blockedCountries: string[];
+  blockedRegions: Array<{ countryCode: string; region: string }>;
+  shippingUnavailableMessage: string;
+  socialFacebookUrl: string;
+  socialInstagramUrl: string;
+  socialTwitterUrl: string;
+  supportWhatsapp: string;
+  supportEmail: string;
 }
 
 /** Payload de actualización parcial — solo se modifican los campos presentes. */

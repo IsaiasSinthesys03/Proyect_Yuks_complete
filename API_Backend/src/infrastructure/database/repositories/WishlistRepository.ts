@@ -5,8 +5,6 @@ import { Product } from '../../../domain/entities/Product';
 
 export class WishlistRepository implements IWishlistRepository {
   async add(userId: string, productId: string): Promise<boolean> {
-    // ON CONFLICT DO NOTHING → idempotente. returningAll() no devuelve fila si
-    // hubo conflicto (ya existía), así que la presencia de fila == inserción nueva.
     const inserted = await db
       .insertInto('wishlists')
       .values({ user_id: userId, product_id: productId })
@@ -28,10 +26,6 @@ export class WishlistRepository implements IWishlistRepository {
   }
 
   async findByUserId(userId: string): Promise<WishlistItem[]> {
-    // Solo productos activos (no soft-deleted) — un producto descontinuado no
-    // debe aparecer en la lista aunque el registro de wishlist persista.
-    // Fase 44: se agrega el stock TOTAL (suma de variantes) vía subconsulta
-    // para pintar "Agotado" en vivo sin N+1 llamadas (REQ-FE-19).
     const rows = await db
       .selectFrom('wishlists')
       .innerJoin('products', 'products.id', 'wishlists.product_id')
@@ -41,35 +35,43 @@ export class WishlistRepository implements IWishlistRepository {
       )
       .where('wishlists.user_id', '=', userId)
       .where('products.is_deleted', '=', false)
+      .where('products.status', '=', 'ACTIVE')
       .orderBy('wishlists.created_at', 'desc')
       .execute();
 
-    return rows.map((row) => ({ ...this.mapRow(row), totalStock: Number(row.total_stock) }));
+    const productIds = rows.map(r => r.id);
+    let catMap = new Map();
+    if (productIds.length > 0) {
+      const catRows = await db.selectFrom('product_categories')
+        .select(['product_id', 'category_id'])
+        .where('product_id', 'in', productIds)
+        .execute();
+      
+      catRows.forEach(r => {
+        if (!catMap.has(r.product_id)) catMap.set(r.product_id, []);
+        catMap.get(r.product_id).push(r.category_id);
+      });
+    }
+
+    return rows.map((row) => ({ 
+        ...this.mapRow({ ...row, category_ids: catMap.get(row.id) || [] } as any), 
+        totalStock: Number(row.total_stock) 
+    }));
   }
 
-  private mapRow(row: {
-    id: string;
-    category_id: string;
-    name: string;
-    description: string | null;
-    price: string;
-    has_virtual_reward: boolean;
-    is_deleted: boolean;
-    version: number;
-    image_url: string | null;
-    created_at: Date;
-    updated_at: Date;
-  }): Product {
+  private mapRow(row: any): Product {
     return {
       id: row.id,
-      categoryId: row.category_id,
+      categoryIds: row.category_ids || [],
       name: row.name,
       description: row.description,
       price: parseFloat(row.price),
+      status: row.status,
       hasVirtualReward: row.has_virtual_reward,
       isDeleted: row.is_deleted,
       version: row.version,
       imageUrl: row.image_url,
+      galleryUrls: row.gallery_urls ?? [],
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

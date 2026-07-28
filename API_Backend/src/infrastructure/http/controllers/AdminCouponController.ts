@@ -50,7 +50,7 @@ export class AdminCouponController {
         expiresAt: string;
         minPurchaseAmount?: number | null;
       };
-      const coupon = await this.createCouponUseCase.execute(body);
+      const coupon = await this.createCouponUseCase.execute(body, request.adminContext!);
       reply.status(201).send({ success: true, data: coupon });
     } catch (err) {
       this.handleError(err, reply);
@@ -68,7 +68,7 @@ export class AdminCouponController {
         expiresAt?: string;
         minPurchaseAmount?: number | null;
       };
-      const coupon = await this.updateCouponUseCase.execute(id, body);
+      const coupon = await this.updateCouponUseCase.execute(id, body, request.adminContext!);
       reply.status(200).send({ success: true, data: coupon });
     } catch (err) {
       this.handleError(err, reply);
@@ -78,7 +78,7 @@ export class AdminCouponController {
   async toggleCoupon(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { id } = request.params as { id: string };
-      const coupon = await this.toggleCouponUseCase.execute(id);
+      const coupon = await this.toggleCouponUseCase.execute(id, request.adminContext!);
       reply.status(200).send({ success: true, data: coupon });
     } catch (err) {
       this.handleError(err, reply);

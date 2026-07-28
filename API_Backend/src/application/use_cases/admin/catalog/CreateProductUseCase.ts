@@ -13,15 +13,21 @@ export class CreateProductUseCase {
   async execute(dto: CreateProductDTO, context: AdminAuditContext): Promise<Product> {
     if (dto.price <= 0) throw new InvalidPriceError();
 
-    const category = await this.repo.findCategoryById(dto.categoryId);
-    if (!category) throw new CategoryNotFoundError(dto.categoryId);
+    if (!dto.categoryIds || dto.categoryIds.length === 0) {
+      throw new Error('At least one category is required');
+    }
+    for (const categoryId of dto.categoryIds) {
+      const category = await this.repo.findCategoryById(categoryId);
+      if (!category) throw new CategoryNotFoundError(categoryId);
+    }
 
     return this.repo.create(
       {
-        categoryId: dto.categoryId,
+        categoryIds: dto.categoryIds,
         name: dto.name,
         description: dto.description ?? null,
         price: dto.price,
+        status: dto.status,
         hasVirtualReward: dto.hasVirtualReward ?? false,
       },
       context

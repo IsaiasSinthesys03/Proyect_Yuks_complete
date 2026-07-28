@@ -1,5 +1,9 @@
 import { Donation, DonationStatus } from '../../domain/entities/Donation';
-import { AdminDonationFilterDTO, DonationPaginatedResponseDTO } from '../../domain/types/DonationDTOs';
+import {
+  AdminDonationFilterDTO,
+  DonationPaginatedResponseDTO,
+  MyDonationsPaginatedResponseDTO,
+} from '../../domain/types/DonationDTOs';
 
 /**
  * Puerto (Interfaz) del Repositorio de Donaciones (REQ-BE-09).
@@ -14,6 +18,7 @@ export interface IDonationRepository {
     amount: number;
     donorEmail: string;
     idempotencyKey: string;
+    userId?: string;
   }): Promise<Donation>;
 
   /** Busca por clave de idempotencia (anti-doble cobro) */
@@ -31,4 +36,6 @@ export interface IDonationRepository {
 
   /** Listado paginado para el panel CMS (CMS-FE-13) */
   findAll(filter: AdminDonationFilterDTO): Promise<DonationPaginatedResponseDTO>;
+
+  findByUserId(userId: string, page?: number, limit?: number): Promise<MyDonationsPaginatedResponseDTO>;
 }

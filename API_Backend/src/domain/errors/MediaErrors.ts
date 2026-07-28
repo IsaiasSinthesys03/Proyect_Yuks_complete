@@ -51,7 +51,7 @@ export class ImageProcessingError extends Error {
 export class StorageServiceError extends Error {
   readonly statusCode = 503;
   constructor(detail: string) {
-    super(`Error al subir la imagen al almacenamiento: ${detail}`);
+    super(`Error al subir el archivo al almacenamiento: ${detail}`);
     this.name = 'StorageServiceError';
   }
 }

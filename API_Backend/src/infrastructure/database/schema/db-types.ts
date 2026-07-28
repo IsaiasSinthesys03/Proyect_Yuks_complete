@@ -23,6 +23,8 @@ export interface Database {
   legal_documents: LegalDocumentTable;
   wishlists: WishlistTable;
   notifications: NotificationTable;
+  product_categories: ProductCategoriesTable;
+  youtube_videos: YoutubeVideoTable;
 }
 
 export interface UserTable {
@@ -76,14 +78,15 @@ export type CategoryUpdate = Updateable<CategoryTable>;
 // ==========================================
 export interface ProductTable {
   id: Generated<string>;
-  category_id: string;
   name: string;
   description: string | null;
   price: string; // NUMERIC viene como string desde PostgreSQL
+  status: Generated<string>; // 'ACTIVE' | 'DRAFT'
   has_virtual_reward: Generated<boolean>;
   is_deleted: Generated<boolean>;
   version: Generated<number>;
   image_url: string | null;
+  gallery_urls: Generated<string[]>; // Added for secondary gallery
   character: string | null; // Fase 33: Personaje para el filtro del catálogo (REQ-FE-12)
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -305,6 +308,7 @@ export type NewAuditLogRow = Insertable<AuditLogTable>;
 // ==========================================
 export interface DonationTable {
   id: Generated<string>;
+  user_id: string | null;
   stripe_payment_intent_id: string | null;
   stripe_charge_id: string | null;
   amount: string;             // NUMERIC → string
@@ -379,6 +383,11 @@ export interface BannerTable {
   title: string;
   image_url: string;
   link_url: string | null;
+  tag: string | null;
+  description: string | null;
+  video_url: string | null;
+  accent_color: string | null;
+  button_text: string | null;
   position: Generated<number>;
   is_active: Generated<boolean>;
   starts_at: Date | null;
@@ -398,6 +407,7 @@ export interface LegalDocumentTable {
   title: string;
   content: string;
   version: Generated<string>;
+  pdf_url: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
@@ -439,3 +449,33 @@ export interface NotificationTable {
 export type NotificationRow = Selectable<NotificationTable>;
 export type NewNotificationRow = Insertable<NotificationTable>;
 export type NotificationRowUpdate = Updateable<NotificationTable>;
+
+// ==========================================
+// Product Categories (N:M)
+// ==========================================
+export interface ProductCategoriesTable {
+  product_id: string;
+  category_id: string;
+}
+
+export type ProductCategoriesRow = Selectable<ProductCategoriesTable>;
+export type NewProductCategoriesRow = Insertable<ProductCategoriesTable>;
+
+// ==========================================
+// Landing Page YouTube Videos
+// ==========================================
+export interface YoutubeVideoTable {
+  id: Generated<string>;
+  title: string;
+  youtube_url: string;
+  video_id: string;
+  position: Generated<number>;
+  is_active: Generated<boolean>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export type YoutubeVideoRow = Selectable<YoutubeVideoTable>;
+export type NewYoutubeVideoRow = Insertable<YoutubeVideoTable>;
+export type YoutubeVideoRowUpdate = Updateable<YoutubeVideoTable>;
+

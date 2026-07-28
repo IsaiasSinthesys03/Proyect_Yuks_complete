@@ -9,14 +9,14 @@ function sanitizeLimit(limit?: number): number { return Math.min(Math.max(Math.f
 
 export class GetInventoryMonitorUseCase {
   constructor(private readonly repo: IAdminInventoryRepository) {}
-  execute(page?: number, limit?: number): Promise<PaginatedResponseDTO<InventoryItemDTO>> {
-    return this.repo.findAllVariantsPaginated(sanitizePage(page), sanitizeLimit(limit));
+  execute(page?: number, limit?: number, search?: string, status?: string): Promise<PaginatedResponseDTO<InventoryItemDTO>> {
+    return this.repo.findAllVariantsPaginated(sanitizePage(page), sanitizeLimit(limit), search, status);
   }
 }
 
 export class ListAdminProductsUseCase {
   constructor(private readonly repo: IAdminInventoryRepository) {}
-  execute(page?: number, limit?: number, includeDeleted = false): Promise<PaginatedResponseDTO<AdminProductListItemDTO>> {
-    return this.repo.findAllProductsPaginated(sanitizePage(page), sanitizeLimit(limit), includeDeleted);
+  execute(page?: number, limit?: number, includeDeleted = false, search?: string, status?: string): Promise<PaginatedResponseDTO<AdminProductListItemDTO>> {
+    return this.repo.findAllProductsPaginated(sanitizePage(page), sanitizeLimit(limit), includeDeleted, search, status);
   }
 }

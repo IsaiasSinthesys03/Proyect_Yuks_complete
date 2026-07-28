@@ -25,6 +25,11 @@ export function buildAdminUserCrmRoutes(controller: AdminUserCrmController) {
       return controller.listUsers(request, reply);
     });
 
+    /** Ledger del monedero de un cliente objetivo (no usa request.user.sub) */
+    fastify.get('/:id/ledger', async (request, reply) => {
+      return controller.getLedger(request, reply);
+    });
+
     /** Banear un usuario (protegido contra auto-ban en BanUserUseCase) */
     fastify.post('/:id/ban', async (request, reply) => {
       return controller.banUser(request, reply);

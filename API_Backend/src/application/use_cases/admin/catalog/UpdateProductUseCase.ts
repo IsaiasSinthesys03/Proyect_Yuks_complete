@@ -15,9 +15,14 @@ export class UpdateProductUseCase {
   async execute(id: string, dto: UpdateProductDTO, context: AdminAuditContext): Promise<Product> {
     if (dto.price !== undefined && dto.price <= 0) throw new InvalidPriceError();
 
-    if (dto.categoryId !== undefined) {
-      const category = await this.repo.findCategoryById(dto.categoryId);
-      if (!category) throw new CategoryNotFoundError(dto.categoryId);
+    if (dto.categoryIds !== undefined) {
+      if (dto.categoryIds.length === 0) {
+        throw new Error('At least one category is required');
+      }
+      for (const categoryId of dto.categoryIds) {
+        const category = await this.repo.findCategoryById(categoryId);
+        if (!category) throw new CategoryNotFoundError(categoryId);
+      }
     }
 
     const { version, ...fields } = dto;

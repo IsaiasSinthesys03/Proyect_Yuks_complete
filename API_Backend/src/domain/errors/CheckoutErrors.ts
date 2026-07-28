@@ -87,6 +87,20 @@ export class AddressNotFoundError extends Error {
   }
 }
 
+export class ShippingDestinationUnavailableError extends Error {
+  constructor(message: string, public readonly reason: 'CONTINENT' | 'COUNTRY' | 'REGION') {
+    super(message);
+    this.name = 'ShippingDestinationUnavailableError';
+  }
+}
+
+export class InvalidShippingAddressError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidShippingAddressError';
+  }
+}
+
 /**
  * Se lanza cuando la firma HMAC del webhook de la pasarela no es válida (REQ-BE-02).
  * Protege contra webhooks falsificados que no provienen realmente de Stripe.

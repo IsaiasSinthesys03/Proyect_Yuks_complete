@@ -25,8 +25,11 @@ export interface AdminProductListItemDTO {
   name: string;
   categoryName: string;
   price: number;
+  status: string;
   hasVirtualReward: boolean;
   isDeleted: boolean;
+  /** Versión OCC visible en el listado (Fase 50). */
+  version: number;
   character: string | null;
   createdAt: Date;
 }

@@ -14,7 +14,7 @@ import { ProductVariant } from '../entities/ProductVariant';
  */
 export interface GetProductsQueryDTO {
   search?: string;
-  categoryId?: string;
+  categoryIds?: string[];
   /** Filtro por rango de precio (REQ-FE-12). */
   minPrice?: number;
   maxPrice?: number;

@@ -30,7 +30,9 @@ export class AdminProductRepository implements IAdminProductRepository {
       .where('id', '=', id)
       .where('is_deleted', '=', false)
       .executeTakeFirst();
-    return row ? this.mapProduct(row) : null;
+    if (!row) return null;
+    const catRows = await db.selectFrom('product_categories').select('category_id').where('product_id', '=', id).execute();
+    return this.mapProduct({ ...row, category_ids: catRows.map(c => c.category_id) } as any);
   }
 
   async findCategoryById(id: string): Promise<Category | null> {
@@ -60,16 +62,27 @@ export class AdminProductRepository implements IAdminProductRepository {
     return row ? this.mapVariant(row) : null;
   }
 
+  async findVariantsByProductId(productId: string): Promise<ProductVariant[]> {
+    const rows = await db
+      .selectFrom('product_variants')
+      .selectAll()
+      .where('product_id', '=', productId)
+      .orderBy('sku', 'asc')
+      .execute();
+    return rows.map((r) => this.mapVariant(r));
+  }
+
   // ==========================================
   // Escritura (dentro de withAdminAuditContext)
   // ==========================================
 
   async create(
     data: {
-      categoryId: string;
+      categoryIds: string[];
       name: string;
       description?: string | null;
       price: number;
+      status?: string;
       hasVirtualReward?: boolean;
     },
     context: AdminAuditContext
@@ -78,25 +91,36 @@ export class AdminProductRepository implements IAdminProductRepository {
       const row = await trx
         .insertInto('products')
         .values({
-          category_id: data.categoryId,
           name: data.name,
           description: data.description ?? null,
           price: data.price.toFixed(2),
+          status: data.status ?? 'ACTIVE',
           has_virtual_reward: data.hasVirtualReward ?? false,
         })
         .returningAll()
         .executeTakeFirstOrThrow();
-      return this.mapProduct(row);
+
+      if (data.categoryIds.length > 0) {
+        await trx.insertInto('product_categories').values(
+          data.categoryIds.map(cId => ({
+            product_id: row.id,
+            category_id: cId
+          }))
+        ).execute();
+      }
+
+      return this.mapProduct({ ...row, category_ids: data.categoryIds } as any);
     });
   }
 
   async update(
     id: string,
     data: {
-      categoryId?: string;
+      categoryIds?: string[];
       name?: string;
       description?: string | null;
       price?: number;
+      status?: string;
       hasVirtualReward?: boolean;
     },
     expectedVersion: number,
@@ -109,7 +133,7 @@ export class AdminProductRepository implements IAdminProductRepository {
           ...(data.name !== undefined ? { name: data.name } : {}),
           ...(data.description !== undefined ? { description: data.description } : {}),
           ...(data.price !== undefined ? { price: data.price!.toFixed(2) } : {}),
-          ...(data.categoryId !== undefined ? { category_id: data.categoryId } : {}),
+          ...(data.status !== undefined ? { status: data.status } : {}),
           ...(data.hasVirtualReward !== undefined ? { has_virtual_reward: data.hasVirtualReward } : {}),
           updated_at: new Date(),
           // OCC: incremento atómico de versión en la misma sentencia
@@ -121,7 +145,23 @@ export class AdminProductRepository implements IAdminProductRepository {
         .returningAll()
         .executeTakeFirst();
 
-      return row ? this.mapProduct(row) : null;
+      if (!row) return null;
+
+      if (data.categoryIds !== undefined) {
+        await trx.deleteFrom('product_categories').where('product_id', '=', id).execute();
+        if (data.categoryIds.length > 0) {
+          await trx.insertInto('product_categories').values(
+            data.categoryIds.map(cId => ({
+              product_id: row.id,
+              category_id: cId
+            }))
+          ).execute();
+        }
+      }
+
+      const catRows = await trx.selectFrom('product_categories').select('category_id').where('product_id', '=', id).execute();
+
+      return this.mapProduct({ ...row, category_ids: catRows.map(c => c.category_id) } as any);
     });
   }
 
@@ -202,6 +242,23 @@ export class AdminProductRepository implements IAdminProductRepository {
     });
   }
 
+  async setAbsoluteStock(
+    variantId: string,
+    stock: number,
+    context: AdminAuditContext
+  ): Promise<ProductVariant | null> {
+    return withAdminAuditContext(context, async (trx) => {
+      const row = await trx
+        .updateTable('product_variants')
+        .set({ stock })
+        .where('id', '=', variantId)
+        .where(sql<boolean>`${stock} >= 0`)
+        .returningAll()
+        .executeTakeFirst();
+      return row ? this.mapVariant(row) : null;
+    });
+  }
+
   async createCategory(name: string, context: AdminAuditContext): Promise<Category> {
     return withAdminAuditContext(context, async (trx) => {
       const row = await trx
@@ -233,29 +290,19 @@ export class AdminProductRepository implements IAdminProductRepository {
   // Mappers: snake_case (SQL) → camelCase (Dominio)
   // ==========================================
 
-  private mapProduct(row: {
-    id: string;
-    category_id: string;
-    name: string;
-    description: string | null;
-    price: string;
-    has_virtual_reward: boolean;
-    is_deleted: boolean;
-    version: number;
-    image_url: string | null;
-    created_at: Date;
-    updated_at: Date;
-  }): Product {
+  private mapProduct(row: any): Product {
     return {
       id: row.id,
-      categoryId: row.category_id,
+      categoryIds: row.category_ids || [],
       name: row.name,
       description: row.description,
       price: parseFloat(row.price),
+      status: row.status,
       hasVirtualReward: row.has_virtual_reward,
       isDeleted: row.is_deleted,
       version: row.version,
       imageUrl: row.image_url,
+      galleryUrls: row.gallery_urls ?? [],
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

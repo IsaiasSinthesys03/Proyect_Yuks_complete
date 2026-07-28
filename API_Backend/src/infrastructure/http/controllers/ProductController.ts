@@ -52,7 +52,7 @@ export class ProductController {
 
       const dto: GetProductsQueryDTO = {
         search: query.search,
-        categoryId: query.categoryId,
+        categoryIds: query.categoryId ? [query.categoryId] : query.categoryIds ? (Array.isArray(query.categoryIds) ? query.categoryIds : [query.categoryIds]) : undefined,
         minPrice: parseNum(query.minPrice),
         maxPrice: parseNum(query.maxPrice),
         character: query.character,

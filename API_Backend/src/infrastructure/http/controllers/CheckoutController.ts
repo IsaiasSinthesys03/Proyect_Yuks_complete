@@ -9,6 +9,7 @@ import {
   MinPurchaseNotMetError,
   PaymentFailedError,
   AddressNotFoundError,
+  ShippingDestinationUnavailableError,
 } from '../../../domain/errors/CheckoutErrors';
 import {
   CouponNotFoundError,
@@ -79,6 +80,24 @@ export class CheckoutController {
     }
   }
 
+  /** POST /api/checkout/coverage — preflight sin reservar stock ni idempotencia. */
+  async checkCoverage(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const { addressId } = request.body as { addressId?: string };
+      if (!addressId) {
+        return void reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'addressId es obligatorio.' });
+      }
+      const result = await this.processCheckoutUseCase.checkShippingCoverage(request.user!.sub, addressId);
+      return void reply.status(200).send({
+        statusCode: 200,
+        message: 'El domicilio se encuentra dentro de la cobertura.',
+        data: result,
+      });
+    } catch (error) {
+      return this.handleError(error, reply);
+    }
+  }
+
   private handleError(error: unknown, reply: FastifyReply): void {
     if (
       error instanceof IdempotencyConflictError ||
@@ -110,6 +129,17 @@ export class CheckoutController {
       error instanceof WalletExpiredError
     ) {
       reply.status(422).send({ statusCode: 422, error: 'Unprocessable Entity', message: error.message });
+      return;
+    }
+
+    if (error instanceof ShippingDestinationUnavailableError) {
+      reply.status(422).send({
+        statusCode: 422,
+        error: 'Shipping Destination Unavailable',
+        code: 'SHIPPING_DESTINATION_UNAVAILABLE',
+        reason: error.reason,
+        message: error.message,
+      });
       return;
     }
 

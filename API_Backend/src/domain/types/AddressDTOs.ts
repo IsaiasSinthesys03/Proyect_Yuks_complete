@@ -21,6 +21,8 @@ export interface CreateAddressDTO {
   postalCode: string;
   municipality: string;
   state: string;
+  /** ISO-3166-1 alpha-2. Los domicilios históricos y payloads omitidos usan MX. */
+  countryCode?: string;
   references?: string;
 }
 

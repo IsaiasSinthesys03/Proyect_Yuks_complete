@@ -1,11 +1,9 @@
 import { IOrderRepository } from '../../interfaces/IOrderRepository';
-import { IProductRepository } from '../../interfaces/IProductRepository';
 import { IPaymentGateway } from '../../interfaces/IPaymentGateway';
 import { IUserRepository } from '../../interfaces/IUserRepository';
 import { IRealtimeService, createRealtimeEvent } from '../../interfaces/IRealtimeService';
 import { AwardExperienceUseCase } from '../gamification/AwardExperienceUseCase';
 import { Order, OrderStatus } from '../../../domain/entities/Order';
-import { StockExpiredAfter3DSecureError } from '../../../domain/errors/CheckoutErrors';
 
 export interface WebhookReconciliationResultDTO {
   handled: boolean;
@@ -29,7 +27,6 @@ export interface WebhookReconciliationResultDTO {
 export class WebhookPaymentReconciliationUseCase {
   constructor(
     private readonly orderRepository: IOrderRepository,
-    private readonly productRepository: IProductRepository,
     private readonly paymentGateway: IPaymentGateway,
     private readonly awardExperienceUseCase: AwardExperienceUseCase,
     private readonly userRepository: IUserRepository,
@@ -60,24 +57,12 @@ export class WebhookPaymentReconciliationUseCase {
       return { handled: true, orderId: order.id, status: order.status };
     }
 
-    // Resolución #1: verificar que el stock sigue disponible tras la
-    // autorización tardía del banco (3D Secure).
+    // El checkout ya reservó el inventario mediante un decremento atómico antes
+    // de devolver el clientSecret. Volver a comparar con el stock restante aquí
+    // invalidaría incorrectamente la venta de la última unidad.
     const orderDetail = await this.orderRepository.findDetailByOrderId(order.id);
     if (!orderDetail) {
       return { handled: false };
-    }
-
-    for (const item of orderDetail.items) {
-      const variantInfo = await this.productRepository.findVariantWithProductById(item.variantId);
-      const currentStock = variantInfo?.variant.stock ?? 0;
-
-      if (currentStock < item.quantity) {
-        // El stock se agotó mientras el banco autorizaba. Reembolso total automático.
-        await this.paymentGateway.refund(providerOrderId);
-        const cancelledOrder = await this.orderRepository.updateStatus(order.id, 'CANCELLED');
-
-        throw new StockExpiredAfter3DSecureError(cancelledOrder.id);
-      }
     }
 
     const paidOrder = await this.orderRepository.updateStatus(order.id, 'PAID');

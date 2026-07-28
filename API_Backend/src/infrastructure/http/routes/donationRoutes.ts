@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { DonationController } from '../controllers/DonationController';
+import { authMiddleware, optionalAuthMiddleware } from '../middlewares/authMiddleware';
 
 /**
  * Plugin de Fastify: Ruta pública de Donaciones (REQ-BE-09).
@@ -11,8 +12,12 @@ import { DonationController } from '../controllers/DonationController';
  */
 export function buildDonationRoutes(donationController: DonationController) {
   return async function donationRoutes(fastify: FastifyInstance): Promise<void> {
-    fastify.post('/donate', async (request, reply) => {
+    fastify.post('/donate', { preHandler: optionalAuthMiddleware }, async (request, reply) => {
       return donationController.donate(request, reply);
+    });
+
+    fastify.get('/profile/donations', { preHandler: authMiddleware }, async (request, reply) => {
+      return donationController.listMine(request, reply);
     });
   };
 }

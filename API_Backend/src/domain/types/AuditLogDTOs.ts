@@ -5,6 +5,7 @@ export interface AuditLogFilterDTO {
   adminEmail?: string;
   action?: AuditAction;
   entityType?: string;
+  date?: string;
   page: number;
   limit: number;
 }

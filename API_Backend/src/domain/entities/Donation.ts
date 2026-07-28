@@ -10,6 +10,7 @@
  */
 export interface Donation {
   readonly id: string;
+  readonly userId: string | null;
   readonly stripePaymentIntentId: string | null;
   readonly stripeChargeId: string | null;
   readonly amount: number;

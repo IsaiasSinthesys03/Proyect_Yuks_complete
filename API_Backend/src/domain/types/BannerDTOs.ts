@@ -6,6 +6,11 @@ export interface CreateBannerDTO {
   title: string;
   imageUrl: string;
   linkUrl?: string | null;
+  tag?: string | null;
+  description?: string | null;
+  videoUrl?: string | null;
+  accentColor?: string | null;
+  buttonText?: string | null;
   position?: number;
   isActive?: boolean;
   startsAt?: string | null; // ISO date
@@ -16,6 +21,11 @@ export interface UpdateBannerDTO {
   title?: string;
   imageUrl?: string;
   linkUrl?: string | null;
+  tag?: string | null;
+  description?: string | null;
+  videoUrl?: string | null;
+  accentColor?: string | null;
+  buttonText?: string | null;
   position?: number;
   isActive?: boolean;
   startsAt?: string | null;

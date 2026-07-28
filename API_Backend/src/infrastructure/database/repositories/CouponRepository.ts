@@ -3,6 +3,8 @@ import { sql } from 'kysely';
 import { ICouponRepository } from '../../../application/interfaces/ICouponRepository';
 import { Coupon, CouponDiscountType } from '../../../domain/entities/Coupon';
 import { CreateCouponDTO, UpdateCouponDTO } from '../../../domain/types/AdminCouponDTOs';
+import { AdminAuditContext } from '../../../domain/types/AdminTypes';
+import { withAdminAuditContext } from '../withAdminAuditContext';
 
 /**
  * Implementación concreta de ICouponRepository usando Kysely.
@@ -62,8 +64,8 @@ export class CouponRepository implements ICouponRepository {
     return this.mapRowToCoupon(row);
   }
 
-  async createCoupon(data: CreateCouponDTO): Promise<Coupon> {
-    const row = await db
+  async createCoupon(data: CreateCouponDTO, context: AdminAuditContext): Promise<Coupon> {
+    const row = await withAdminAuditContext(context, (trx) => trx
       .insertInto('coupons')
       .values({
         code: data.code.toUpperCase().trim(),
@@ -76,12 +78,12 @@ export class CouponRepository implements ICouponRepository {
           : null,
       })
       .returningAll()
-      .executeTakeFirstOrThrow();
+      .executeTakeFirstOrThrow());
 
     return this.mapRowToCoupon(row);
   }
 
-  async updateCoupon(id: string, data: UpdateCouponDTO): Promise<Coupon | null> {
+  async updateCoupon(id: string, data: UpdateCouponDTO, context: AdminAuditContext): Promise<Coupon | null> {
     const updates: Record<string, unknown> = {};
 
     if (data.code       !== undefined) updates['code']         = data.code.toUpperCase().trim();
@@ -99,24 +101,24 @@ export class CouponRepository implements ICouponRepository {
       return this.findCouponById(id);
     }
 
-    const row = await db
+    const row = await withAdminAuditContext(context, (trx) => trx
       .updateTable('coupons')
       .set(updates)
       .where('id', '=', id)
       .returningAll()
-      .executeTakeFirst();
+      .executeTakeFirst());
 
     if (!row) return null;
     return this.mapRowToCoupon(row);
   }
 
-  async toggleActive(id: string): Promise<Coupon | null> {
-    const row = await db
+  async toggleActive(id: string, context: AdminAuditContext): Promise<Coupon | null> {
+    const row = await withAdminAuditContext(context, (trx) => trx
       .updateTable('coupons')
       .set((eb) => ({ is_active: eb.not(eb.ref('is_active')) }))
       .where('id', '=', id)
       .returningAll()
-      .executeTakeFirst();
+      .executeTakeFirst());
 
     if (!row) return null;
     return this.mapRowToCoupon(row);

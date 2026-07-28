@@ -53,6 +53,18 @@ async function run() {
   const migration017 = require('./migrations/017_register_compliance');
   const migration018 = require('./migrations/018_fuzzy_search');
   const migration019 = require('./migrations/019_performance_indices');
+  const migration020 = require('./migrations/020_product_gallery_schema');
+  const migration021 = require('./migrations/021_product_status');
+  const migration022 = require('./migrations/022_expand_banners_schema');
+  const migration023 = require('./migrations/023_add_button_text_to_banners');
+  const migration024 = require('./migrations/024_add_donation_settings');
+  const migration025 = require('./migrations/025_add_missing_donation_settings');
+  const migration026 = require('./migrations/026_add_logistics_details_settings');
+  const migration027 = require('./migrations/027_add_pdf_url_to_legal_documents');
+  const migration028 = require('./migrations/028_add_shipping_coverage_policy');
+  const migration029 = require('./migrations/029_product_categories_schema');
+  const migration030 = require('./migrations/030_youtube_videos_schema');
+  const migration031 = require('./migrations/031_donations_user_association');
 
   const migrator = new Migrator({
     db,
@@ -78,6 +90,18 @@ async function run() {
           '017_register_compliance': migration017,
           '018_fuzzy_search': migration018,
           '019_performance_indices': migration019,
+          '020_product_gallery_schema': migration020,
+          '021_product_status': migration021,
+          '022_expand_banners_schema': migration022,
+          '023_add_button_text_to_banners': migration023,
+          '024_add_donation_settings': migration024,
+          '025_add_missing_donation_settings': migration025,
+          '026_add_logistics_details_settings': migration026,
+          '027_add_pdf_url_to_legal_documents': migration027,
+          '028_add_shipping_coverage_policy': migration028,
+          '029_product_categories_schema': migration029,
+          '030_youtube_videos_schema': migration030,
+          '031_donations_user_association': migration031,
         };
       },
     },

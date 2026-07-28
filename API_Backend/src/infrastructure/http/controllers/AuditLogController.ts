@@ -18,6 +18,7 @@ export class AuditLogController {
         adminEmail: query.adminEmail,
         action: query.action as AuditAction | undefined,
         entityType: query.entityType,
+        date: query.date,
         page: query.page ? parseInt(query.page, 10) : 1,
         limit: query.limit ? parseInt(query.limit, 10) : 20,
       });

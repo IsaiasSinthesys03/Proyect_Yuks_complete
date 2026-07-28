@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
+import { db } from '../../database/client';
 
 dotenv.config();
 
@@ -51,9 +52,10 @@ export async function authMiddleware(
 
   const token = authHeader.split(' ')[1];
 
+  let decoded: JwtPayload;
+
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-    request.user = decoded;
+    decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
   } catch (err: any) {
     const message =
       err.name === 'TokenExpiredError'
@@ -66,4 +68,49 @@ export async function authMiddleware(
       message,
     });
   }
+
+  try {
+    // Revocación inmediata por baneo: un JWT firmado antes de la suspensión
+    // deja de ser utilizable sin esperar a su `exp`.
+    const userStatus = await db
+      .selectFrom('users')
+      .select(['email', 'role', 'is_banned'])
+      .where('id', '=', decoded.sub)
+      .executeTakeFirst();
+
+    if (!userStatus || userStatus.is_banned) {
+      return reply.status(401).send({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'La sesión fue revocada o la cuenta se encuentra suspendida.',
+      });
+    }
+
+    // Defensa ante claims obsoletos/manipulados después de un cambio de rol/email.
+    if (userStatus.role !== decoded.role || userStatus.email !== decoded.email) {
+      return reply.status(401).send({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'La sesión ya no corresponde al estado actual de la cuenta.',
+      });
+    }
+
+    request.user = decoded;
+  } catch (error) {
+    console.error('[authMiddleware] No fue posible validar el estado de la cuenta:', error);
+    return reply.status(503).send({
+      statusCode: 503,
+      error: 'Service Unavailable',
+      message: 'No fue posible validar la sesión en este momento.',
+    });
+  }
+}
+
+/** Permite anonimato; si se envía Bearer, exige que sea válido y no revocado. */
+export async function optionalAuthMiddleware(
+  request: FastifyRequest,
+  reply: FastifyReply
+): Promise<void> {
+  if (!request.headers.authorization) return;
+  await authMiddleware(request, reply);
 }

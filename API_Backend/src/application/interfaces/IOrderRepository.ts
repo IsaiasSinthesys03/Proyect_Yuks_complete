@@ -2,7 +2,7 @@ import { Order, OrderStatus } from '../../domain/entities/Order';
 import { OrderItem } from '../../domain/entities/OrderItem';
 import { OrderSummaryDTO, OrderDetailDTO } from '../../domain/types/OrderDTOs';
 import { PaginatedResponseDTO } from '../../domain/types/ProductDTOs';
-import { AdminOrderFilterDTO } from '../../domain/types/AdminOrderDTOs';
+import { AdminOrderFilterDTO, AdminOrderSummaryDTO } from '../../domain/types/AdminOrderDTOs';
 import { AdminAuditContext } from '../../domain/types/AdminTypes';
 
 /**
@@ -107,5 +107,5 @@ export interface IOrderRepository {
    * Lista todos los pedidos del sistema con filtros opcionales y paginación.
    * Uso exclusivo del Kanban CMS — no filtra por userId.
    */
-  findAllAdmin(filters: AdminOrderFilterDTO): Promise<PaginatedResponseDTO<OrderSummaryDTO>>;
+  findAllAdmin(filters: AdminOrderFilterDTO): Promise<PaginatedResponseDTO<AdminOrderSummaryDTO>>;
 }

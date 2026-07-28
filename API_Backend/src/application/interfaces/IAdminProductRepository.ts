@@ -31,6 +31,9 @@ export interface IAdminProductRepository {
   /** Busca una variante por su ID (sin filtro de producto soft-deleted). */
   findVariantById(id: string): Promise<ProductVariant | null>;
 
+  /** Busca todas las variantes de un producto. */
+  findVariantsByProductId(productId: string): Promise<ProductVariant[]>;
+
   // ==========================================
   // Escritura (con contexto de auditoría)
   // ==========================================
@@ -40,10 +43,11 @@ export interface IAdminProductRepository {
    * El trigger `fn_write_audit_log` escribe en `audit_logs` con action='CREATE'.
    */
   create(data: {
-    categoryId: string;
+    categoryIds: string[];
     name: string;
     description?: string | null;
     price: number;
+    status?: string;
     hasVirtualReward?: boolean;
   }, context: AdminAuditContext): Promise<Product>;
 
@@ -60,10 +64,11 @@ export interface IAdminProductRepository {
   update(
     id: string,
     data: {
-      categoryId?: string;
+      categoryIds?: string[];
       name?: string;
       description?: string | null;
       price?: number;
+      status?: string;
       hasVirtualReward?: boolean;
     },
     expectedVersion: number,
@@ -110,6 +115,12 @@ export interface IAdminProductRepository {
    * @returns La variante con stock actualizado, o `null` si el stock resultante sería < 0.
    */
   adjustStockDelta(variantId: string, delta: number, context: AdminAuditContext): Promise<ProductVariant | null>;
+
+  /**
+   * Sobrescribe el stock absoluto de una variante (ej: conteo físico).
+   * Lanza error si stock < 0.
+   */
+  setAbsoluteStock(variantId: string, stock: number, context: AdminAuditContext): Promise<ProductVariant | null>;
 
   /**
    * Crea una nueva categoría.

@@ -10,6 +10,11 @@ export interface Banner {
   readonly title: string;
   readonly imageUrl: string;
   readonly linkUrl: string | null;
+  readonly tag: string | null;
+  readonly description: string | null;
+  readonly videoUrl: string | null;
+  readonly accentColor: string | null;
+  readonly buttonText: string | null;
   readonly position: number;
   readonly isActive: boolean;
   readonly startsAt: Date | null;

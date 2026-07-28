@@ -22,7 +22,9 @@ import {
   OutOfStockError,
   MinPurchaseNotMetError,
   AddressNotFoundError,
+  ShippingDestinationUnavailableError,
 } from '../../../domain/errors/CheckoutErrors';
+import { evaluateShippingCoverage } from '../../../domain/services/ShippingCoveragePolicy';
 import {
   CouponNotFoundError,
   CouponExpiredError,
@@ -75,24 +77,28 @@ export class ProcessCheckoutUseCase {
     private readonly userRepository: IUserRepository
   ) {}
 
+  async checkShippingCoverage(
+    userId: string,
+    addressId: string
+  ): Promise<{ available: true }> {
+    const [systemConfig, address] = await Promise.all([
+      this.systemSettingsRepository.getCheckoutConfig(),
+      this.addressRepository.findById(addressId, userId),
+    ]);
+    if (!address) throw new AddressNotFoundError(addressId);
+    const coverage = evaluateShippingCoverage(address, systemConfig);
+    if (!coverage.available) {
+      throw new ShippingDestinationUnavailableError(coverage.message, coverage.reason);
+    }
+    return { available: true };
+  }
+
   async execute(
     userId: string,
     idempotencyKey: string,
     clientIp: string,
     data: CheckoutRequestDTO
   ): Promise<CheckoutResponseDTO> {
-    // --- Paso 1: Idempotencia (Q2) ---
-    const alreadyReserved = await this.idempotencyService.check(idempotencyKey);
-    if (alreadyReserved) {
-      const existingOrder = await this.orderRepository.findByIdempotencyKey(idempotencyKey);
-      if (existingOrder) {
-        return this.toResponseDTO(existingOrder.id, existingOrder.status, existingOrder.totalPaid);
-      }
-      // La key está reservada pero la orden todavía no se persiste (operación en vuelo).
-      throw new IdempotencyConflictError(idempotencyKey);
-    }
-    await this.idempotencyService.set(idempotencyKey, IDEMPOTENCY_TTL_SECONDS);
-
     // BRECHA-16: leer la configuración logística DINÁMICAMENTE (caché Redis con
     // TTL corto). Un cambio de tarifas/umbrales en el CMS aplica sin reiniciar.
     const systemConfig = await this.systemSettingsRepository.getCheckoutConfig();
@@ -102,6 +108,21 @@ export class ProcessCheckoutUseCase {
     if (!address) {
       throw new AddressNotFoundError(data.addressId);
     }
+    const coverage = evaluateShippingCoverage(address, systemConfig);
+    if (!coverage.available) throw new ShippingDestinationUnavailableError(coverage.message, coverage.reason);
+
+    // --- Paso 1: Idempotencia (Q2) ---
+    // Se consulta/reserva solo cuando dirección y cobertura ya son válidas.
+    // Así un destino rechazado tampoco depende de Redis y puede corregirse.
+    const alreadyReserved = await this.idempotencyService.check(idempotencyKey);
+    if (alreadyReserved) {
+      const existingOrder = await this.orderRepository.findByIdempotencyKey(idempotencyKey);
+      if (existingOrder) {
+        return this.toResponseDTO(existingOrder.id, existingOrder.status, existingOrder.totalPaid);
+      }
+      throw new IdempotencyConflictError(idempotencyKey);
+    }
+    await this.idempotencyService.set(idempotencyKey, IDEMPOTENCY_TTL_SECONDS);
 
     // --- Paso 3: Bloqueo pesimista de stock (Redis) ---
     const acquiredLockKeys: string[] = [];

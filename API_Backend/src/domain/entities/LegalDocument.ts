@@ -11,6 +11,7 @@ export interface LegalDocument {
   readonly slug: string;
   readonly title: string;
   readonly content: string;
+  readonly pdfUrl?: string | null;
   readonly version: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;

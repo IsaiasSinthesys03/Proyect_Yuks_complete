@@ -34,3 +34,27 @@ export interface UpdateOrderStatusDTO {
   trackingCompany?: string | null;
   trackingNumber?: string | null;
 }
+
+/**
+ * Fila del Kanban logístico (Fase 49, CMS-FE-04).
+ *
+ * A diferencia del `OrderSummaryDTO` del perfil del cliente, el tablero
+ * logístico necesita el SNAPSHOT de entrega de la orden (dirección, CP,
+ * municipio, tipo de envío) y la identidad del cliente (nombre/teléfono,
+ * vía JOIN a profiles) para que el operador pueda despachar sin abrir
+ * cada pedido.
+ */
+export interface AdminOrderSummaryDTO {
+  id: string;
+  status: OrderStatus;
+  totalPaid: number;
+  itemCount: number;
+  createdAt: Date;
+  deliveryType: string | null;      // 'LOCAL' | 'EXTERNAL_COURIER'
+  shippingAddress: string;
+  postalCode: string;
+  municipality: string;
+  state: string;
+  clientName: string;
+  clientPhone: string | null;
+}

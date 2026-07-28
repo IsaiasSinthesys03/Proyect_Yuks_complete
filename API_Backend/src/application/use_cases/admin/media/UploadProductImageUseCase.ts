@@ -35,7 +35,7 @@ const OUTPUT_SIZE_PX = 1080;
  *   3. Rechazar SVG y cualquier no-imagen explícitamente.
  *   4. Procesar con sharp (failOn:'error') → anti-decompression-bomb.
  *   5. Rechazar si dimensiones > MAX_INPUT_DIMENSION_PX.
- *   6. Redimensionar a OUTPUT_SIZE_PX × OUTPUT_SIZE_PX WEBP (cover fit).
+ *   6. Redimensionar a OUTPUT_SIZE_PX × OUTPUT_SIZE_PX WEBP sin recortar el producto.
  *   7. Generar nombre de archivo via crypto.randomUUID() — anti path-traversal.
  *   8. Subir buffer final al servicio de almacenamiento.
  *   9. Actualizar product.image_url en BD con contexto de auditoría.
@@ -89,11 +89,17 @@ export class UploadProductImageUseCase {
         );
       }
 
-      // Resize + conversión a WEBP. `fit: 'cover'` recorta para llenar el cuadrado.
+      // Resize + conversión a WEBP. `fit: 'contain'` preserva la imagen completa y
+      // rellena en blanco el espacio restante del lienzo cuadrado. Esto evita que
+      // fotografías verticales pierdan arriba/abajo y las horizontales, los laterales.
       // `withoutEnlargement: false` asegura que imágenes pequeñas se escalen hacia arriba
       // de forma consistente (canvas uniforme 1080×1080 para el frontend).
       processedBuffer = await image
-        .resize(OUTPUT_SIZE_PX, OUTPUT_SIZE_PX, { fit: 'cover', withoutEnlargement: false })
+        .resize(OUTPUT_SIZE_PX, OUTPUT_SIZE_PX, {
+          fit: 'contain',
+          background: { r: 255, g: 255, b: 255, alpha: 1 },
+          withoutEnlargement: false,
+        })
         .webp({ quality: 85 })
         .toBuffer();
 

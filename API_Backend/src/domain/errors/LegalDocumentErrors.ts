@@ -9,3 +9,12 @@ export class LegalDocumentNotFoundError extends Error {
     this.name = 'LegalDocumentNotFoundError';
   }
 }
+
+/** El archivo recibido no es un PDF real según su firma binaria. */
+export class InvalidLegalPdfError extends Error {
+  readonly statusCode = 415;
+  constructor() {
+    super('El archivo no es un PDF válido. Solo se aceptan documentos application/pdf.');
+    this.name = 'InvalidLegalPdfError';
+  }
+}

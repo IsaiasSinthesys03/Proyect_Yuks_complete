@@ -6,6 +6,7 @@ export interface CreateDonationDTO {
   amount: number;
   donorEmail: string;
   idempotencyKey: string;
+  userId?: string;
 }
 
 /** DTO de respuesta pública de donación */
@@ -35,6 +36,16 @@ export interface AdminDonationFilterDTO {
 }
 
 export type DonationPaginatedResponseDTO = PaginatedResponseDTO<AdminDonationSummaryDTO>;
+
+/** Historial seguro del usuario autenticado (sin email ni identificadores Stripe). */
+export interface MyDonationDTO {
+  id: string;
+  amount: number;
+  status: DonationStatus;
+  createdAt: Date;
+}
+
+export type MyDonationsPaginatedResponseDTO = PaginatedResponseDTO<MyDonationDTO>;
 
 /** Mapa la entidad al DTO de respuesta pública */
 export function mapDonationToSummaryDTO(donation: Donation): AdminDonationSummaryDTO {

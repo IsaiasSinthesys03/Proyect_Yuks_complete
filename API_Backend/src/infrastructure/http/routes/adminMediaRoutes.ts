@@ -6,8 +6,8 @@ import { authMiddleware } from '../middlewares/authMiddleware';
 import { adminMiddleware } from '../middlewares/adminMiddleware';
 import { adminAuditContextMiddleware } from '../middlewares/adminAuditContextMiddleware';
 
-/** Límite de tamaño de archivo: 8 MB. Defensa en la primera línea (antes de leer el stream). */
-const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024;
+/** Límite de tamaño de archivo: 50 MB para soportar subidas de videos. */
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 
 /**
  * Plugin de Fastify: Rutas CMS de Media — Upload de Imágenes (Fase 23).
@@ -53,13 +53,50 @@ export function buildAdminMediaRoutes(controller: AdminMediaController) {
      *   3. Rechazo explícito de SVG e imágenes no JPEG/PNG/WEBP
      *   4. sharp con failOn:'error' (anti-decompression-bomb)
      *   5. Límite de dimensiones 8000×8000px
-     *   6. Resize a 1080×1080 WEBP, quality 85
+     *   6. Resize contain a 1080×1080 WEBP, fondo blanco, quality 85
      *   7. Nombre UUID aleatorio (anti path-traversal)
      *   8. Upload a S3
      *   9. Actualización de product.image_url con audit log
      */
-    fastify.post('/:id/image', async (request, reply) => {
+    /**
+     * POST /api/admin/products/:id/image
+     */
+    fastify.post('/products/:id/image', async (request, reply) => {
       return controller.uploadProductImage(request, reply);
+    });
+
+    /**
+     * POST /api/admin/banners/:id/image
+     */
+    fastify.post('/banners/:id/image', async (request, reply) => {
+      return controller.uploadBannerImage(request, reply);
+    });
+
+    /**
+     * POST /api/admin/banners/:id/video
+     */
+    fastify.post('/banners/:id/video', async (request, reply) => {
+      return controller.uploadBannerVideo(request, reply);
+    });
+
+    /**
+     * POST /api/admin/products/:id/gallery
+     */
+    fastify.post('/products/:id/gallery', async (request, reply) => {
+      return controller.uploadProductGalleryImage(request, reply);
+    });
+
+    /**
+     * DELETE /api/admin/products/:id/gallery
+     */
+    fastify.delete('/products/:id/gallery', async (request, reply) => {
+      return controller.removeProductGalleryImage(request, reply);
+    });
+    /**
+     * POST /api/admin/settings/donation-banner
+     */
+    fastify.post('/settings/donation-banner', async (request, reply) => {
+      return controller.uploadDonationBanner(request, reply);
     });
   };
 }

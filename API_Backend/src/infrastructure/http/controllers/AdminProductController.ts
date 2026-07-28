@@ -5,6 +5,8 @@ import { SoftDeleteProductUseCase } from '../../../application/use_cases/admin/c
 import { CreateVariantUseCase } from '../../../application/use_cases/admin/catalog/CreateVariantUseCase';
 import { UpdateVariantUseCase } from '../../../application/use_cases/admin/catalog/UpdateVariantUseCase';
 import { AdjustVariantStockUseCase } from '../../../application/use_cases/admin/catalog/AdjustVariantStockUseCase';
+import { SetAbsoluteStockUseCase } from '../../../application/use_cases/admin/catalog/SetAbsoluteStockUseCase';
+import { GetAdminProductDetailUseCase } from '../../../application/use_cases/admin/catalog/GetAdminProductDetailUseCase';
 import {
   OptimisticConcurrencyError,
   DuplicateSkuError,
@@ -34,13 +36,15 @@ export class AdminProductController {
     private readonly createVariantUseCase: CreateVariantUseCase,
     private readonly updateVariantUseCase: UpdateVariantUseCase,
     private readonly adjustVariantStockUseCase: AdjustVariantStockUseCase,
+    private readonly setAbsoluteStockUseCase: SetAbsoluteStockUseCase,
+    private readonly getAdminProductDetailUseCase: GetAdminProductDetailUseCase,
   ) {}
 
   async createProduct(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const context = request.adminContext!;
       const body = request.body as {
-        categoryId: string;
+        categoryIds: string[];
         name: string;
         description?: string | null;
         price: number;
@@ -53,12 +57,22 @@ export class AdminProductController {
     }
   }
 
+  async getProduct(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const { id } = request.params as { id: string };
+      const result = await this.getAdminProductDetailUseCase.execute(id);
+      reply.status(200).send({ success: true, data: result });
+    } catch (err) {
+      this.handleError(err, reply);
+    }
+  }
+
   async updateProduct(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const context = request.adminContext!;
       const { id } = request.params as { id: string };
       const body = request.body as {
-        categoryId?: string;
+        categoryIds?: string[];
         name?: string;
         description?: string | null;
         price?: number;
@@ -125,6 +139,18 @@ export class AdminProductController {
       const { variantId } = request.params as { id: string; variantId: string };
       const body = request.body as { delta: number };
       const variant = await this.adjustVariantStockUseCase.execute(variantId, body, context);
+      reply.status(200).send({ success: true, data: variant });
+    } catch (err) {
+      this.handleError(err, reply);
+    }
+  }
+
+  async setAbsoluteStock(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const context = request.adminContext!;
+      const { variantId } = request.params as { id: string; variantId: string };
+      const body = request.body as { stock: number };
+      const variant = await this.setAbsoluteStockUseCase.execute(variantId, body, context);
       reply.status(200).send({ success: true, data: variant });
     } catch (err) {
       this.handleError(err, reply);

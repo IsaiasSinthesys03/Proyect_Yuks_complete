@@ -1,6 +1,7 @@
 import { ICouponRepository } from '../../../interfaces/ICouponRepository';
 import { Coupon } from '../../../../domain/entities/Coupon';
 import { CreateCouponDTO } from '../../../../domain/types/AdminCouponDTOs';
+import { AdminAuditContext } from '../../../../domain/types/AdminTypes';
 import {
   InvalidDiscountValueError,
   InvalidExpirationDateError,
@@ -10,7 +11,7 @@ import {
 export class CreateCouponUseCase {
   constructor(private readonly couponRepo: ICouponRepository) {}
 
-  async execute(dto: CreateCouponDTO): Promise<Coupon> {
+  async execute(dto: CreateCouponDTO, context: AdminAuditContext): Promise<Coupon> {
     // Validar valor de descuento según tipo
     if (dto.discountType === 'PERCENTAGE') {
       if (dto.discountValue <= 0 || dto.discountValue > 100) {
@@ -33,7 +34,7 @@ export class CreateCouponUseCase {
     }
 
     try {
-      return await this.couponRepo.createCoupon({ ...dto, expiresAt });
+      return await this.couponRepo.createCoupon({ ...dto, expiresAt }, context);
     } catch (err: unknown) {
       // Detectar violación UNIQUE del código (PostgreSQL error code 23505)
       const msg = err instanceof Error ? err.message : '';

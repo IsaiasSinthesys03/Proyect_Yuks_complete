@@ -29,6 +29,7 @@ export class StripeAdapter implements IPaymentGateway {
       amount: Math.round(amount * 100),
       currency,
       metadata,
+      automatic_payment_methods: { enabled: true },
     });
 
     if (!paymentIntent.client_secret) {
