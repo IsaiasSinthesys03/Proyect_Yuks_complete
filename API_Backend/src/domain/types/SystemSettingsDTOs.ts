@@ -11,6 +11,7 @@ export interface SystemSettingsValues {
   minPurchaseAmount: number;
   localShippingCost: number;
   externalShippingCost: number;
+  vatPercentage: number;
   baseState: string;
   nearbyMunicipalities: string[];
   donationMinAmount: number;

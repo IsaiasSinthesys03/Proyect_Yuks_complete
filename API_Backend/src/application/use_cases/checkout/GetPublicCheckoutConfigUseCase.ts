@@ -10,6 +10,7 @@ export interface PublicCheckoutConfigDTO {
   localShippingCost: number;
   externalShippingCost: number;
   minPurchaseAmount: number;
+  vatPercentage: number;
   donationMinAmount: number;
   donationQuickAmounts: number[];
   donationBannerUrl?: string;
@@ -47,6 +48,7 @@ export class GetPublicCheckoutConfigUseCase {
       localShippingCost: config.localShippingCost,
       externalShippingCost: config.externalShippingCost,
       minPurchaseAmount: config.minPurchaseAmount,
+      vatPercentage: config.vatPercentage ?? 16,
       donationMinAmount: config.donationMinAmount,
       donationQuickAmounts: config.donationQuickAmounts,
       donationBannerUrl: config.donationBannerUrl,

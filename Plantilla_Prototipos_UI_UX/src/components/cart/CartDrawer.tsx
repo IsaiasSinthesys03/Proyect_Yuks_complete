@@ -37,7 +37,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         finalTotal,
         THRESHOLD_FREE_SHIPPING,
         tier,
-        tierMultiplier
+        tierMultiplier,
+        vatPercentage
     } = useCart();
 
     const removeItem = useCartStore((s: any) => s.removeItem);
@@ -222,13 +223,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                             <span className="text-[#e6c59e]">${subtotal.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-sm text-[#e6c59e]/80 font-medium">
-                            <span>IVA incluido (16%)</span>
+                            <span>IVA incluido ({vatPercentage}%)</span>
                             <span className="text-[#e6c59e]">${iva.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-sm text-[#e6c59e]/80 font-medium">
                             <span>Costo de Envío</span>
-                            <span className={shippingCost === 0 && subtotal > 0 ? 'text-[#96c93e] font-black uppercase tracking-wider drop-shadow-md' : 'text-[#e6c59e]'}>
-                                {subtotal === 0 ? '$0.00' : shippingCost === 0 ? '¡GRATIS!' : `$${shippingCost.toFixed(2)}`}
+                            <span className={hasFreeShipping ? 'text-[#96c93e] font-black uppercase tracking-wider drop-shadow-md' : 'text-[#e6c59e]'}>
+                                {subtotal === 0 ? '$0.00' : hasFreeShipping ? '¡GRATIS!' : shippingType === null ? 'Por calcular' : `$${shippingCost.toFixed(2)}`}
                             </span>
                         </div>
                         <div className="flex justify-between text-xl font-black text-[#e6c59e] pt-4 border-t border-[#1a9a21]/20">

@@ -1794,3 +1794,14 @@
 - [x] Auditoría final a 320 px confirmó cero controles interactivos visibles menores a 44 px y cero errores de consola.
 - [x] `npm run build` frontend completado con 1,514 módulos transformados y cero errores.
 - [x] Controles originales de acceso y carrito restaurados en su ubicación del catálogo y verificados en móvil y escritorio.
+
+## Corrección post-cierre — Forgot / Reset Password completo (2026-07-31)
+
+- [x] Token de recuperación capturado desde query string o ruta, retenido solo en memoria y eliminado inmediatamente de la URL.
+- [x] Modal de nueva contraseña conectado con visibilidad alternable, cinco reglas de complejidad, coincidencia, carga y bloqueo antidoble-click.
+- [x] Éxito conectado a Toast y apertura automática de Login; enlace inválido/usado conectado a mensaje accionable y nueva solicitud.
+- [x] Esquema Fastify y validación de negocio rechazan token vacío y contraseña sin complejidad.
+- [x] Cambio Argon2id, consumo único y revocación de refresh tokens consolidados en una transacción PostgreSQL con bloqueo de fila.
+- [x] E2E real: solicitud 202, token SHA-256 coincidente, cambio desde UI, URL limpia, contraseña anterior 401 y nueva 200.
+- [x] Reutilización verificada: HTTP 400, hash intacto y estado visual para solicitar un nuevo enlace.
+- [x] `npm run typecheck`, `npm run build` y consola del navegador completados con cero errores.

@@ -149,6 +149,7 @@ export const SettingsView = ({ showToast }) => {
             minPurchaseAmount: Number(settings.minPurchaseAmount),
             localShippingCost: Number(settings.localShippingCost),
             externalShippingCost: Number(settings.externalShippingCost),
+            vatPercentage: Number(settings.vatPercentage ?? 16),
             localEta: settings.localEta,
         });
     };
@@ -354,6 +355,13 @@ export const SettingsView = ({ showToast }) => {
                         <div className="relative">
                             <span className="absolute left-4 top-3 text-[#e6c59e]/55 font-bold">$</span>
                             <input type="number" min="0" value={settings.minPurchaseAmount} onChange={(e) => updateField('minPurchaseAmount', e.target.value)} className="w-full bg-[#0a2e0d] border border-[#1a9a21]/20 focus:border-emerald-500/50 rounded-xl pl-8 pr-4 py-3 text-emerald-400 font-bold outline-none transition-colors" />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-[#e6c59e]/70 uppercase mb-2">Porcentaje de IVA (%)</label>
+                        <div className="relative">
+                            <span className="absolute left-4 top-3 text-[#e6c59e]/55 font-bold">%</span>
+                            <input type="number" min="0" max="100" value={settings.vatPercentage ?? 16} onChange={(e) => updateField('vatPercentage', e.target.value)} className="w-full bg-[#0a2e0d] border border-[#1a9a21]/20 focus:border-emerald-500/50 rounded-xl pl-8 pr-4 py-3 text-emerald-400 font-bold outline-none transition-colors" />
                         </div>
                     </div>
                     <div className="pt-4 border-t border-[#1a9a21]/20 col-span-1 md:col-span-2">

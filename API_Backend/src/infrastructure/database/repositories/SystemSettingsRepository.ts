@@ -24,6 +24,7 @@ const SETTINGS_KEY_MAP: Record<keyof SystemSettingsValues, string> = {
   minPurchaseAmount: 'min_purchase_amount',
   localShippingCost: 'local_shipping_cost',
   externalShippingCost: 'external_shipping_cost',
+  vatPercentage: 'vat_percentage',
   baseState: 'base_state',
   nearbyMunicipalities: 'nearby_municipalities',
   donationMinAmount: 'donation_min_amount',
@@ -66,6 +67,7 @@ export class SystemSettingsRepository implements ISystemSettingsRepository {
       minPurchaseAmount: Number(valueByKey.get(SETTINGS_KEY_MAP.minPurchaseAmount)),
       localShippingCost: Number(valueByKey.get(SETTINGS_KEY_MAP.localShippingCost)),
       externalShippingCost: Number(valueByKey.get(SETTINGS_KEY_MAP.externalShippingCost)),
+      vatPercentage: Number(valueByKey.get(SETTINGS_KEY_MAP.vatPercentage) ?? 16),
       baseState: String(valueByKey.get(SETTINGS_KEY_MAP.baseState)),
       nearbyMunicipalities: (valueByKey.get(SETTINGS_KEY_MAP.nearbyMunicipalities) as string[]) ?? [],
       donationMinAmount: Number(valueByKey.get(SETTINGS_KEY_MAP.donationMinAmount) ?? 10),
@@ -97,10 +99,22 @@ export class SystemSettingsRepository implements ISystemSettingsRepository {
       for (const [field, value] of entries) {
         if (value === undefined) continue;
 
+        const key = SETTINGS_KEY_MAP[field];
+        if (!key) continue;
+
         await trx
-          .updateTable('system_settings')
-          .set({ value: JSON.stringify(value), updated_at: new Date() })
-          .where('key', '=', SETTINGS_KEY_MAP[field])
+          .insertInto('system_settings')
+          .values({
+            key,
+            value: JSON.stringify(value),
+            updated_at: new Date(),
+          })
+          .onConflict((oc) =>
+            oc.column('key').doUpdateSet({
+              value: JSON.stringify(value),
+              updated_at: new Date(),
+            })
+          )
           .execute();
       }
     });

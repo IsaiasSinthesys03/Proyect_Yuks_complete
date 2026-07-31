@@ -1,30 +1,12 @@
 import { Worker, Job } from 'bullmq';
 import { observeRedisEmitter, redisWorkerConnectionOptions } from '../../cache/redis-client';
 import { EMAIL_QUEUE_NAME } from '../email-queue';
-import { ResendEmailService } from '../../services/email/ResendEmailService';
+import { NodemailerEmailService } from '../../services/email/NodemailerEmailService';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-/**
- * Worker de Email Transaccional (REQ-BE-04, REQ-BE-09).
- *
- * Proceso independiente del servidor HTTP — puede escalar horizontalmente
- * en pods separados sin afectar la API.
- *
- * JOBS MANEJADOS:
- *   - 'email:order_status'    → Notificación de cambio de estado de pedido
- *   - 'email:donation_receipt' → Recibo de donación confirmada
- *   - 'email:password_reset'  → Enlace de recuperación de contraseña (Fase 29)
- *   - 'email:otp'             → Código OTP para cambio email/teléfono (Fase 29)
- *
- * Mini Composition Root: instancia sus propias dependencias de infraestructura.
- * No reutiliza el grafo de main.ts porque puede ejecutarse en proceso separado.
- */
-const EMAIL_API_KEY  = process.env.EMAIL_API_KEY  || '';
-const EMAIL_FROM     = process.env.EMAIL_FROM     || 'noreply@animayuks.com';
-
-const emailService = new ResendEmailService(EMAIL_API_KEY, EMAIL_FROM);
+const emailService = new NodemailerEmailService();
 
 interface OrderStatusJobData {
   to: string;

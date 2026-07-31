@@ -41,8 +41,10 @@ export const useCart = () => {
     const LOCAL_RATE = config?.localShippingCost ?? FALLBACK_LOCAL_RATE;
     const EXTERNAL_RATE = config?.externalShippingCost ?? FALLBACK_EXTERNAL_RATE;
 
-    // IVA incluido (desglose): parte del subtotal que corresponde al impuesto.
-    const iva = subtotal - subtotal / (1 + IVA_RATE);
+    // IVA incluido (desglose dinámico): parte del subtotal que corresponde al impuesto.
+    const vatPercentage = config?.vatPercentage ?? 16;
+    const vatRate = vatPercentage / 100;
+    const iva = vatRate > 0 ? subtotal - subtotal / (1 + vatRate) : 0;
     const missingForFree = Math.max(0, THRESHOLD_FREE_SHIPPING - subtotal);
     const hasFreeShipping = subtotal >= THRESHOLD_FREE_SHIPPING;
 
@@ -86,6 +88,7 @@ export const useCart = () => {
         finalTotal,
         THRESHOLD_FREE_SHIPPING,
         tier,
-        tierMultiplier
+        tierMultiplier,
+        vatPercentage
     };
 };

@@ -7,6 +7,25 @@ import { queryClient } from './src/lib/queryClient'
 import { ConnectivityGate } from './src/components/ConnectivityGate'
 import './src/styles/responsive.css'
 
+import * as Sentry from '@sentry/react'
+
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
+if (sentryDsn) {
+  Sentry.init({
+    dsn: sentryDsn,
+    integrations: [
+      Sentry.browserTracingIntegration(),
+      Sentry.replayIntegration({
+        maskAllText: false,
+        blockAllMedia: false,
+      }),
+    ],
+    tracesSampleRate: 1.0,
+    replaysSessionSampleRate: 0.1,
+    replaysOnErrorSampleRate: 1.0,
+  });
+}
+
 // [DEV] Exposición para verificación empírica de la capa de sesión (Fase 38).
 // Solo en desarrollo; permite probar login/refresh desde la consola/preview.
 if (import.meta.env.DEV) {

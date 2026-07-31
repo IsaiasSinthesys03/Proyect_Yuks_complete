@@ -1,12 +1,11 @@
 import * as argon2 from 'argon2';
-import { IUserRepository } from '../../interfaces/IUserRepository';
 import { IPasswordResetTokenRepository } from '../../interfaces/IPasswordResetTokenRepository';
-import { IRefreshTokenRepository } from '../../interfaces/IRefreshTokenRepository';
 import { ResetPasswordDTO } from '../../../domain/types/PasswordRecoveryDTOs';
 import { InvalidResetTokenError, ResetTokenExpiredError } from '../../../domain/errors/AdvancedAuthErrors';
 import { sha256Hex } from './authTokenUtils';
 
 const MIN_PASSWORD_LENGTH = 8;
+const STRONG_PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,200}$/;
 
 /**
  * Caso de Uso: Restablecer Contraseña con Token (Fase 29).
@@ -18,26 +17,16 @@ const MIN_PASSWORD_LENGTH = 8;
  */
 export class ResetPasswordUseCase {
   constructor(
-    private readonly userRepository: IUserRepository,
     private readonly resetTokenRepository: IPasswordResetTokenRepository,
-    private readonly refreshTokenRepository: IRefreshTokenRepository,
   ) {}
 
   async execute(dto: ResetPasswordDTO): Promise<void> {
-    if (!dto.newPassword || dto.newPassword.length < MIN_PASSWORD_LENGTH) {
-      // Validación de negocio: reutilizamos InvalidResetTokenError no aplica aquí;
-      // lanzamos un error genérico de argumento para que el Controller lo mapee a 422.
-      throw new WeakPasswordError();
-    }
-
-    const record = await this.resetTokenRepository.findByTokenHash(sha256Hex(dto.token));
-
-    if (!record || record.usedAt !== null) {
+    if (!dto?.token || typeof dto.token !== 'string' || dto.token.trim().length === 0) {
       throw new InvalidResetTokenError();
     }
 
-    if (record.expiresAt.getTime() < Date.now()) {
-      throw new ResetTokenExpiredError();
+    if (typeof dto.newPassword !== 'string' || !STRONG_PASSWORD_PATTERN.test(dto.newPassword)) {
+      throw new WeakPasswordError();
     }
 
     const passwordHash = await argon2.hash(dto.newPassword, {
@@ -47,18 +36,21 @@ export class ResetPasswordUseCase {
       parallelism: 4,
     });
 
-    await this.userRepository.updatePassword(record.userId, passwordHash);
-    await this.resetTokenRepository.markUsed(record.id);
+    const result = await this.resetTokenRepository.consumeAndResetPassword({
+      tokenHash: sha256Hex(dto.token),
+      passwordHash,
+      now: new Date(),
+    });
 
-    // Cerrar todas las sesiones activas tras el cambio de contraseña.
-    await this.refreshTokenRepository.revokeAllForUser(record.userId);
+    if (result === 'EXPIRED') throw new ResetTokenExpiredError();
+    if (result === 'INVALID') throw new InvalidResetTokenError();
   }
 }
 
 /** Se lanza cuando la nueva contraseña no cumple la longitud mínima. HTTP 422. */
 export class WeakPasswordError extends Error {
   constructor() {
-    super(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+    super(`La contraseña debe tener entre ${MIN_PASSWORD_LENGTH} y 200 caracteres e incluir mayúscula, minúscula, número y un símbolo (@$!%*?&).`);
     this.name = 'WeakPasswordError';
   }
 }

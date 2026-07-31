@@ -46,6 +46,48 @@ export class PasswordResetTokenRepository implements IPasswordResetTokenReposito
       .execute();
   }
 
+  async consumeAndResetPassword(data: {
+    tokenHash: string;
+    passwordHash: string;
+    now: Date;
+  }): Promise<'SUCCESS' | 'INVALID' | 'EXPIRED'> {
+    return db.transaction().execute(async (trx) => {
+      const token = await trx
+        .selectFrom('password_reset_tokens')
+        .select(['id', 'user_id', 'expires_at', 'used_at'])
+        .where('token_hash', '=', data.tokenHash)
+        .forUpdate()
+        .executeTakeFirst();
+
+      if (!token || token.used_at !== null) return 'INVALID';
+      if (token.expires_at.getTime() < data.now.getTime()) return 'EXPIRED';
+
+      const consumed = await trx
+        .updateTable('password_reset_tokens')
+        .set({ used_at: data.now })
+        .where('id', '=', token.id)
+        .where('used_at', 'is', null)
+        .executeTakeFirst();
+
+      if (consumed.numUpdatedRows !== 1n) return 'INVALID';
+
+      await trx
+        .updateTable('users')
+        .set({ password_hash: data.passwordHash })
+        .where('id', '=', token.user_id)
+        .executeTakeFirstOrThrow();
+
+      await trx
+        .updateTable('refresh_tokens')
+        .set({ revoked: true })
+        .where('user_id', '=', token.user_id)
+        .where('revoked', '=', false)
+        .execute();
+
+      return 'SUCCESS';
+    });
+  }
+
   private mapRow(row: {
     id: string;
     user_id: string;

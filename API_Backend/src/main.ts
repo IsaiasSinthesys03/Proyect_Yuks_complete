@@ -5,11 +5,24 @@ import rateLimit from '@fastify/rate-limit';
 import helmet from '@fastify/helmet';
 import websocket from '@fastify/websocket';
 import dotenv from 'dotenv';
+import * as Sentry from '@sentry/node';
+
+dotenv.config();
+
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: 1.0,
+  });
+  console.log('📡 [Sentry Backend] Monitoreo de errores activo.');
+}
 
 // --- Infraestructura ---
 import { db } from './infrastructure/database/client';
 import { createRedisSubscriber, redisConnection } from './infrastructure/cache/redis-client';
 import { BullMQQueueService } from './infrastructure/queues/BullMQQueueService';
+import './infrastructure/queues/workers/email.worker';
 
 // --- Repositorios (Adaptadores de Infraestructura) ---
 import { UserRepository } from './infrastructure/database/repositories/UserRepository';
@@ -543,9 +556,7 @@ async function main(): Promise<void> {
     30, // TTL del enlace en minutos
   );
   const resetPasswordUseCase = new ResetPasswordUseCase(
-    userRepository,
     passwordResetTokenRepository,
-    refreshTokenRepository,
   );
   const requestOtpUseCase = new RequestOtpUseCase(otpRepository, userRepository, queueService, 10);
   const verifyOtpUseCase = new VerifyOtpUseCase(otpRepository, userRepository);

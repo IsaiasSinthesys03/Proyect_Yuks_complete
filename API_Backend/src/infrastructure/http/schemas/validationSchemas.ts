@@ -27,6 +27,21 @@ export const registerBodySchema = {
   },
 } as const;
 
+export const resetPasswordBodySchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['token', 'newPassword'],
+  properties: {
+    token: { type: 'string', minLength: 1, maxLength: 512 },
+    newPassword: {
+      type: 'string',
+      minLength: 8,
+      maxLength: 200,
+      pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&]).{8,200}$',
+    },
+  },
+} as const;
+
 export const checkoutBodySchema = {
   type: 'object',
   required: ['items', 'addressId', 'termsVersion'],

@@ -234,9 +234,7 @@ export const AdminLayout = ({ onLogout, showToast }) => {
                     </div>
 
                     <div className="flex min-w-0 items-center gap-1.5 sm:gap-3 md:gap-6 ml-auto">
-                        <button aria-label="Exportar reporte" className="flex h-11 w-11 sm:w-auto items-center justify-center gap-2 bg-[#96c93e] hover:bg-[#85b237] text-[#061f09] sm:px-4 rounded-2xl text-sm font-black transition-colors shadow-lg shadow-[#96c93e]/20" onClick={() => setIsExportOpen(true)}>
-                            <Database className="w-4 h-4" /> <span className="hidden xl:inline">Exportar Reporte</span>
-                        </button>
+
                         {/* [Fase 48] Campana: escucha `report:ready` del WS admin */}
                         <NotificationBell showToast={showToast} />
                         <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 md:pl-6 border-l border-[#1a9a21]/20">

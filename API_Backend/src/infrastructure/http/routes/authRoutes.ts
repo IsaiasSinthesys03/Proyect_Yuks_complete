@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { AuthController } from '../controllers/AuthController';
 import { authMiddleware } from '../middlewares/authMiddleware';
-import { registerBodySchema, STRICT_RATE_LIMIT } from '../schemas/validationSchemas';
+import { registerBodySchema, resetPasswordBodySchema, STRICT_RATE_LIMIT } from '../schemas/validationSchemas';
 
 /**
  * Plugin de Fastify: Rutas de Autenticación.
@@ -43,7 +43,10 @@ export function buildAuthRoutes(authController: AuthController) {
       return authController.forgotPassword(request, reply);
     });
 
-    fastify.post('/reset-password', { config: STRICT_RATE_LIMIT }, async (request, reply) => {
+    fastify.post('/reset-password', {
+      config: STRICT_RATE_LIMIT,
+      schema: { body: resetPasswordBodySchema },
+    }, async (request, reply) => {
       return authController.resetPassword(request, reply);
     });
 

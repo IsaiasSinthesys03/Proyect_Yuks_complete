@@ -19,4 +19,15 @@ export interface IPasswordResetTokenRepository {
    * nuevo (para que solo el último enlace enviado sea válido) y tras un reseteo.
    */
   invalidateAllForUser(userId: string): Promise<void>;
+
+  /**
+   * Consume el token y aplica el cambio de credenciales como una única
+   * transacción. El bloqueo de fila evita que dos solicitudes concurrentes
+   * reutilicen el mismo enlace.
+   */
+  consumeAndResetPassword(data: {
+    tokenHash: string;
+    passwordHash: string;
+    now: Date;
+  }): Promise<'SUCCESS' | 'INVALID' | 'EXPIRED'>;
 }

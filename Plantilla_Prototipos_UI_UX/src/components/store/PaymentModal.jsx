@@ -28,7 +28,7 @@ export const PaymentModal = ({ isOpen, close, showToast }) => {
     const items = useCartStore((s) => s.items);
     const clearCart = useCartStore((s) => s.clear);
     const addressId = useCheckoutStore((s) => s.addressId);
-    const { finalTotal, shippingCost } = useCart();
+    const { finalTotal, hasFreeShipping } = useCart();
     const [pendingOrder, setPendingOrder] = useState(null);
     const [successOrder, setSuccessOrder] = useState(null);
     const [isCreatingOrder, setIsCreatingOrder] = useState(false);
@@ -124,7 +124,7 @@ export const PaymentModal = ({ isOpen, close, showToast }) => {
                             <span className="text-xs font-bold text-slate-400 uppercase">Total a Pagar</span>
                             <span className="text-xl font-black text-[#03bbd3]">${finalTotal.toFixed(2)}</span>
                         </div>
-                        {shippingCost === 0 && (
+                        {hasFreeShipping && (
                             <p className="text-[10px] text-[#96c93e] font-bold flex items-center gap-1 mt-3"><CheckCircle2 className="w-3 h-3" /> Envío gratis aplicado — el total final lo confirma el backend</p>
                         )}
                         <button type="button" onClick={beginPayment} disabled={!addressId || items.length === 0 || isCreatingOrder} className="w-full bg-gradient-to-r from-[#03bbd3] to-[#02a8be] hover:from-[#02a8be] hover:to-[#0295a8] text-white font-bold py-4 rounded-xl mt-6 transition-transform hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 uppercase tracking-wide text-sm">

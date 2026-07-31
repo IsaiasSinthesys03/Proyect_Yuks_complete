@@ -112,6 +112,7 @@ export default function AnimayuksWeb() {
     const isAuthModalOpen = useUiStore((state) => state.isAuthModalOpen);
     const openAuth = useUiStore((state) => state.openAuth);
     const closeAuth = useUiStore((state) => state.closeAuth);
+    const [resetPasswordToken, setResetPasswordToken] = useState(null);
     const [isDonationOpen, setIsDonationOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -127,6 +128,24 @@ export default function AnimayuksWeb() {
     };
     const [showCheckoutAddressModal, setShowCheckoutAddressModal] = useState(false);
     const [showOtpModal, setShowOtpModal] = useState(false);
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const queryToken = params.get('token')?.trim();
+        const pathTokenMatch = window.location.pathname.match(/\/reset-password\/([^/]+)\/?$/);
+        let pathToken = '';
+        if (pathTokenMatch?.[1]) {
+            try { pathToken = decodeURIComponent(pathTokenMatch[1]).trim(); }
+            catch { pathToken = ''; }
+        }
+        const token = queryToken || pathToken;
+
+        if (!token) return;
+
+        setResetPasswordToken(token);
+        window.history.replaceState({}, document.title, window.location.pathname);
+        openAuth();
+    }, [openAuth]);
 
     // [ENTERPRISE] Command Palette State
     const [isCommandOpen, setIsCommandOpen] = useState(false);
@@ -347,6 +366,8 @@ export default function AnimayuksWeb() {
                 onClose={closeAuth}
                 showToast={showToast}
                 currentView={currentView}
+                resetToken={resetPasswordToken}
+                onResetConsumed={() => setResetPasswordToken(null)}
             />
             <CheckoutAddressModal
                 isOpen={showCheckoutAddressModal}

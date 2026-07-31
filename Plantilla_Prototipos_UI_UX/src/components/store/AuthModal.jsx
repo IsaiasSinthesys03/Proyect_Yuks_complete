@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     ShoppingCart, User, Menu, X, ChevronRight, ChevronLeft, Heart, Play,
     Search, Filter, ChevronDown, Package, MapPin, CreditCard,
@@ -24,7 +24,7 @@ const readError = (error, fallback) => {
     return fallback;
 };
 
-export const AuthModal = ({ isOpen, close, onClose, showToast, currentView = 'landing' }) => {
+export const AuthModal = ({ isOpen, close, onClose, showToast, currentView = 'landing', resetToken = null, onResetConsumed }) => {
     const handleClose = close || onClose;
     const [authTab, setAuthTab] = useState('login');
 
@@ -48,6 +48,30 @@ export const AuthModal = ({ isOpen, close, onClose, showToast, currentView = 'la
 
     // --- Estado del formulario de Recuperación ---
     const [recoverEmail, setRecoverEmail] = useState('');
+    const [resetPwd, setResetPwd] = useState('');
+    const [resetConfirmPwd, setResetConfirmPwd] = useState('');
+    const [showResetPwd, setShowResetPwd] = useState(false);
+    const [showResetConfirmPwd, setShowResetConfirmPwd] = useState(false);
+    const [resetLinkInvalid, setResetLinkInvalid] = useState(false);
+
+    const resetRequirements = [
+        { label: 'Mínimo 8 caracteres', valid: resetPwd.length >= 8 },
+        { label: 'Una letra mayúscula', valid: /[A-Z]/.test(resetPwd) },
+        { label: 'Una letra minúscula', valid: /[a-z]/.test(resetPwd) },
+        { label: 'Un número', valid: /\d/.test(resetPwd) },
+        { label: 'Un símbolo @$!%*?&', valid: /[@$!%*?&]/.test(resetPwd) },
+    ];
+    const resetPasswordIsStrong = resetRequirements.every((requirement) => requirement.valid) && resetPwd.length <= 200;
+    const resetPasswordsMatch = resetConfirmPwd.length > 0 && resetPwd === resetConfirmPwd;
+    const canSubmitReset = Boolean(resetToken) && resetPasswordIsStrong && resetPasswordsMatch && !resetLinkInvalid;
+
+    useEffect(() => {
+        if (!isOpen || !resetToken) return;
+        setAuthTab('reset');
+        setResetPwd('');
+        setResetConfirmPwd('');
+        setResetLinkInvalid(false);
+    }, [isOpen, resetToken]);
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const isEmailValid = emailRegex.test(email);
@@ -99,6 +123,34 @@ export const AuthModal = ({ isOpen, close, onClose, showToast, currentView = 'la
         onError: (error) => showToast(readError(error, 'No pudimos procesar la solicitud.'), 'error'),
     });
 
+    const resetMutation = useMutation({
+        mutationFn: () => api.post('/api/auth/reset-password', {
+            token: resetToken,
+            newPassword: resetPwd,
+        }),
+        onSuccess: () => {
+            showToast('¡Tu contraseña ha sido actualizada exitosamente!', 'success');
+            if (recoverEmail) setLoginEmail(recoverEmail);
+            setResetPwd('');
+            setResetConfirmPwd('');
+            onResetConsumed?.();
+            setAuthTab('login');
+        },
+        onError: (error) => {
+            const status = error?.response?.status;
+            if (status === 400 || status === 401) {
+                setResetLinkInvalid(true);
+                showToast('El enlace de recuperación ha expirado o ya fue utilizado. Por favor solicita uno nuevo.', 'error');
+                return;
+            }
+            if (status === 429) {
+                showToast('Demasiados intentos. Espera un minuto antes de volver a intentarlo.', 'error');
+                return;
+            }
+            showToast(readError(error, 'No pudimos actualizar tu contraseña.'), 'error');
+        },
+    });
+
     const submitLogin = (e) => {
         e.preventDefault();
         loginMutation.mutate();
@@ -127,6 +179,20 @@ export const AuthModal = ({ isOpen, close, onClose, showToast, currentView = 'la
         forgotMutation.mutate();
     };
 
+    const submitReset = (e) => {
+        e.preventDefault();
+        if (!canSubmitReset || resetMutation.isPending) return;
+        resetMutation.mutate();
+    };
+
+    const requestAnotherReset = () => {
+        onResetConsumed?.();
+        setResetLinkInvalid(false);
+        setResetPwd('');
+        setResetConfirmPwd('');
+        setAuthTab('recover');
+    };
+
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 bg-[#061f09]/80 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
@@ -134,7 +200,7 @@ export const AuthModal = ({ isOpen, close, onClose, showToast, currentView = 'la
                 <button onClick={handleClose} className="absolute top-6 right-6 text-[#e6c59e]/50 hover:text-[#03bbd3] transition-colors"><X className="w-6 h-6" /></button>
                 <div className="text-center mb-6">
                     <div className="w-12 h-12 bg-[#03bbd3]/15 rounded-2xl mx-auto flex items-center justify-center mb-4 border border-[#03bbd3]/30"><User className="text-[#03bbd3] w-6 h-6" /></div>
-                    <h2 className="font-bungee text-xl sm:text-2xl text-[#e6c59e] uppercase leading-tight">{authTab === 'login' ? 'Acceder' : authTab === 'register' ? 'Unirse' : 'Recuperar'}</h2>
+                    <h2 className="font-bungee text-xl sm:text-2xl text-[#e6c59e] uppercase leading-tight">{authTab === 'login' ? 'Acceder' : authTab === 'register' ? 'Unirse' : authTab === 'reset' ? 'Nueva Contraseña' : 'Recuperar'}</h2>
                 </div>
 
                 {authTab === 'login' && (
@@ -233,6 +299,55 @@ export const AuthModal = ({ isOpen, close, onClose, showToast, currentView = 'la
                             {forgotMutation.isPending ? <><Loader2 className="w-5 h-5 animate-spin" /> Enviando...</> : 'Enviar Enlace'}
                         </button>
                         <p className="text-center text-xs text-[#e6c59e]/60 mt-4 cursor-pointer hover:text-[#e6c59e]" onClick={() => setAuthTab('login')}>Volver a Iniciar Sesión</p>
+                    </form>
+                )}
+
+                {authTab === 'reset' && (
+                    <form onSubmit={submitReset} className="space-y-4 animate-in fade-in">
+                        {resetLinkInvalid ? (
+                            <div className="rounded-2xl border border-[#ec1676]/40 bg-[#ec1676]/10 p-4 text-center">
+                                <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-[#ec1676]" />
+                                <p className="text-sm font-bold leading-relaxed text-[#e6c59e]">El enlace de recuperación ha expirado o ya fue utilizado.</p>
+                                <p className="mt-1 text-xs text-[#e6c59e]/60">Solicita un nuevo enlace para continuar de forma segura.</p>
+                                <button type="button" onClick={requestAnotherReset} className="mt-4 min-h-11 w-full rounded-xl bg-[#03bbd3] px-4 font-bold text-white transition-colors hover:bg-[#02a8be]">
+                                    Solicitar un nuevo enlace
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                <p className="text-center text-xs leading-relaxed text-[#e6c59e]/60">Crea una contraseña nueva y segura. Al guardarla se cerrarán todas tus sesiones activas.</p>
+
+                                <div className="relative">
+                                    <input type={showResetPwd ? 'text' : 'password'} value={resetPwd} onChange={(e) => setResetPwd(e.target.value)} placeholder="Nueva Contraseña" autoComplete="new-password" required maxLength={200} className="w-full rounded-xl border border-[#1a9a21]/30 bg-[#061f09] px-4 py-3 pr-12 text-[#e6c59e] outline-none focus:border-[#03bbd3]" />
+                                    <button type="button" onClick={() => setShowResetPwd((visible) => !visible)} aria-label={showResetPwd ? 'Ocultar nueva contraseña' : 'Mostrar nueva contraseña'} className="absolute right-1.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-[#1a9a21]/60 transition-colors hover:text-[#96c93e]">
+                                        {showResetPwd ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-2 rounded-2xl border border-[#1a9a21]/20 bg-[#061f09]/70 p-3 min-[390px]:grid-cols-2">
+                                    {resetRequirements.map((requirement) => (
+                                        <div key={requirement.label} className={`flex items-center gap-2 text-[11px] font-bold ${requirement.valid ? 'text-[#96c93e]' : 'text-[#e6c59e]/45'}`}>
+                                            <CheckCircle2 className="h-4 w-4 shrink-0" />
+                                            <span>{requirement.label}</span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div>
+                                    <div className="relative">
+                                        <input type={showResetConfirmPwd ? 'text' : 'password'} value={resetConfirmPwd} onChange={(e) => setResetConfirmPwd(e.target.value)} placeholder="Confirmar Nueva Contraseña" autoComplete="new-password" required maxLength={200} className={`w-full rounded-xl border bg-[#061f09] px-4 py-3 pr-12 text-[#e6c59e] outline-none transition-colors ${resetConfirmPwd.length === 0 ? 'border-[#1a9a21]/30 focus:border-[#03bbd3]' : resetPasswordsMatch ? 'border-[#96c93e]' : 'border-[#ec1676]'}`} />
+                                        <button type="button" onClick={() => setShowResetConfirmPwd((visible) => !visible)} aria-label={showResetConfirmPwd ? 'Ocultar confirmación de contraseña' : 'Mostrar confirmación de contraseña'} className="absolute right-1.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-[#1a9a21]/60 transition-colors hover:text-[#96c93e]">
+                                            {showResetConfirmPwd ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                        </button>
+                                    </div>
+                                    {resetConfirmPwd.length > 0 && !resetPasswordsMatch && <p className="mt-2 text-xs font-bold text-[#ec1676]">Las contraseñas no coinciden.</p>}
+                                </div>
+
+                                <button type="submit" disabled={!canSubmitReset || resetMutation.isPending} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#96c93e] px-4 font-black text-[#061f09] shadow-lg transition-all hover:bg-[#85b237] disabled:cursor-not-allowed disabled:opacity-40">
+                                    {resetMutation.isPending ? <><Loader2 className="h-5 w-5 animate-spin" /> Guardando...</> : 'Guardar Nueva Contraseña'}
+                                </button>
+                            </>
+                        )}
                     </form>
                 )}
             </div>
