@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
     "migrate": "tsx src/infrastructure/database/migrate.ts",
+    "redis:up": "docker compose -f compose.redis.yml up -d --wait",
+    "redis:down": "docker compose -f compose.redis.yml down",
+    "redis:logs": "docker compose -f compose.redis.yml logs -f redis",
     "worker:reconciliation": "tsx watch src/infrastructure/queues/workers/payment-reconciliation.worker.ts",
     "worker:email": "tsx watch src/infrastructure/queues/workers/email.worker.ts",
     "worker:reports": "tsx watch src/infrastructure/queues/workers/reports.worker.ts",

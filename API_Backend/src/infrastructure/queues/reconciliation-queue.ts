@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq';
-import { redisConnectionOptions } from '../cache/redis-client';
+import { observeRedisEmitter, redisConnectionOptions } from '../cache/redis-client';
 
 /**
  * Cola dedicada de Reconciliación de Pagos (Q4 — Dead Letter Queue).
@@ -13,6 +13,9 @@ export const RECONCILIATION_QUEUE_NAME = 'animayuks-reconciliation-queue';
 
 export const reconciliationQueue = new Queue(RECONCILIATION_QUEUE_NAME, {
   connection: redisConnectionOptions,
+  skipWaitingForReady: true,
+  skipVersionCheck: true,
+  skipMetasUpdate: true,
   defaultJobOptions: {
     attempts: 5, // Q4: "Si falla 5 veces, marca NEEDS_RECONCILIATION"
     backoff: { type: 'exponential', delay: 2000 }, // 2s, 4s, 8s, 16s, 32s
@@ -21,4 +24,4 @@ export const reconciliationQueue = new Queue(RECONCILIATION_QUEUE_NAME, {
   },
 });
 
-console.log('📬 Cola "animayuks-reconciliation-queue" (DLQ de pagos) instanciada.');
+observeRedisEmitter(reconciliationQueue, 'queue:reconciliation');

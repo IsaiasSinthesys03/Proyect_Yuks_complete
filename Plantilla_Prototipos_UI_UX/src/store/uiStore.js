@@ -19,6 +19,9 @@ export const useUiStore = create((set) => ({
   otpPurpose: null,
   setOtpPurpose: (otpPurpose) => set({ otpPurpose }),
 
+  globalSearchQuery: '',
+  setGlobalSearchQuery: (query) => set({ globalSearchQuery: query }),
+
   showToast: (msg, type = 'success') => {
     set({ toast: { msg, type } });
     setTimeout(() => set({ toast: null }), 4000);

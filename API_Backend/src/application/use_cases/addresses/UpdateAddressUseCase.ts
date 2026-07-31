@@ -4,10 +4,14 @@ import { Address } from '../../../domain/entities/Address';
 import { AddressNotFoundError } from '../../../domain/errors/CheckoutErrors';
 import { InvalidShippingAddressError } from '../../../domain/errors/CheckoutErrors';
 import { isKnownCountryCode } from '../../../domain/services/ShippingCoveragePolicy';
+import { IGeographyCatalog } from '../../interfaces/IGeographyCatalog';
 
 /** Caso de Uso: Actualizar una dirección existente (REQ-FE-17). */
 export class UpdateAddressUseCase {
-  constructor(private readonly addressRepository: IAddressRepository) {}
+  constructor(
+    private readonly addressRepository: IAddressRepository,
+    private readonly geographyCatalog: IGeographyCatalog,
+  ) {}
 
   async execute(addressId: string, userId: string, data: UpdateAddressDTO): Promise<Address> {
     if (data.countryCode !== undefined && !isKnownCountryCode(data.countryCode)) {
@@ -16,6 +20,14 @@ export class UpdateAddressUseCase {
     const existing = await this.addressRepository.findById(addressId, userId);
     if (!existing) {
       throw new AddressNotFoundError(addressId);
+    }
+    if (data.countryCode !== undefined || data.state !== undefined || data.municipality !== undefined) {
+      const countryCode = data.countryCode ?? existing.country;
+      const state = data.state ?? existing.state;
+      const municipality = data.municipality ?? existing.municipality;
+      if (!await this.geographyCatalog.isValidLocation(countryCode, state, municipality)) {
+        throw new InvalidShippingAddressError('La combinación de país, estado/región y ciudad no existe en el catálogo geográfico vigente.');
+      }
     }
 
     return this.addressRepository.update(addressId, userId, data);

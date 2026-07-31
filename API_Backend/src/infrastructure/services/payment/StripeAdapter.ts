@@ -29,6 +29,9 @@ export class StripeAdapter implements IPaymentGateway {
       amount: Math.round(amount * 100),
       currency,
       metadata,
+      // Checkout transaccional de un solo uso: no se proporciona Customer,
+      // SetupIntent ni setup_future_usage. Stripe no adjunta el método de pago
+      // a una bóveda reutilizable del usuario.
       automatic_payment_methods: { enabled: true },
     });
 

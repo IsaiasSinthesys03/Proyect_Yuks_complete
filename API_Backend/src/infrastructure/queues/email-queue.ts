@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq';
-import { redisConnectionOptions } from '../cache/redis-client';
+import { observeRedisEmitter, redisConnectionOptions } from '../cache/redis-client';
 
 export const EMAIL_QUEUE_NAME = 'animayuks-email-queue';
 
@@ -14,6 +14,9 @@ export const EMAIL_QUEUE_NAME = 'animayuks-email-queue';
  */
 export const emailQueue = new Queue(EMAIL_QUEUE_NAME, {
   connection: redisConnectionOptions,
+  skipWaitingForReady: true,
+  skipVersionCheck: true,
+  skipMetasUpdate: true,
   defaultJobOptions: {
     attempts: 3,
     backoff: {
@@ -24,3 +27,5 @@ export const emailQueue = new Queue(EMAIL_QUEUE_NAME, {
     removeOnFail: { count: 200 },     // Mantener los últimos 200 fallidos para debugging
   },
 });
+
+observeRedisEmitter(emailQueue, 'queue:email');

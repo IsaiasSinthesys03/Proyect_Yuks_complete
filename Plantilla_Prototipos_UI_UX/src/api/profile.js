@@ -85,6 +85,18 @@ export function useWalletLedger(enabled = true) {
   });
 }
 
+/** GET /api/profile/donations — aportaciones asociadas al usuario autenticado. */
+export function useMyDonations(enabled = true) {
+  return useQuery({
+    queryKey: ['profile', 'donations'],
+    queryFn: async () => {
+      const page = unwrap(await api.get('/api/profile/donations'));
+      return Array.isArray(page) ? page : (page?.data ?? []);
+    },
+    enabled,
+  });
+}
+
 /**
  * useAvailableCoupons — Cupones promocionales VIGENTES (Fase 44, REQ-FE-21).
  * GET /api/profile/coupons → [{ code, discountType, discountValue,

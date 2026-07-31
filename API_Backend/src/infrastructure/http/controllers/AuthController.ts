@@ -34,6 +34,13 @@ import * as crypto from 'crypto';
 const REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
 const REFRESH_TOKEN_COOKIE_PATH = '/api/auth/refresh';
 const OAUTH_STATE_COOKIE_NAME = 'oauth_state';
+const OAUTH_RETURN_TO_COOKIE_NAME = 'oauth_return_to';
+
+function oauthReturnPath(returnTo?: string): string {
+  if (returnTo === 'store') return '/catalogo';
+  if (returnTo === 'legal') return '/legal';
+  return '/';
+}
 
 /**
  * Atributos de seguridad estrictos para la cookie del Refresh Token (Q19).
@@ -274,14 +281,23 @@ export class AuthController {
    * Redirige al usuario a la pantalla de consentimiento de Google, sembrando
    * un `state` anti-CSRF en una cookie efímera.
    */
-  async googleRedirect(_request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async googleRedirect(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const state = crypto.randomBytes(16).toString('hex');
+    const query = request.query as { returnTo?: string };
+    const returnPath = oauthReturnPath(query.returnTo);
     reply.setCookie(OAUTH_STATE_COOKIE_NAME, state, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      path: '/api/auth/oauth',
+      path: '/',
       maxAge: 600, // 10 min
+    });
+    reply.setCookie(OAUTH_RETURN_TO_COOKIE_NAME, returnPath, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 600,
     });
     const url = this.oauthProvider.getAuthorizationUrl(state);
     return reply.redirect(url);
@@ -292,22 +308,33 @@ export class AuthController {
    * Valida el `state`, intercambia el code y establece la sesión.
    */
   async googleCallback(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173')
+      .split(',')[0]
+      .trim();
+
+    const returnPath = oauthReturnPath(
+      request.cookies?.[OAUTH_RETURN_TO_COOKIE_NAME] === '/catalogo'
+        ? 'store'
+        : request.cookies?.[OAUTH_RETURN_TO_COOKIE_NAME] === '/legal'
+          ? 'legal'
+          : 'landing'
+    );
+
     try {
       const query = request.query as { code?: string; state?: string };
       const cookieState = request.cookies?.[OAUTH_STATE_COOKIE_NAME];
 
-      if (!query.code) {
-        return reply.status(400).send({
-          statusCode: 400, error: 'Bad Request', message: 'Falta el parámetro "code".',
-        });
+      // Validación anti-CSRF del state & presencia de code.
+      if (!query.code || !query.state || !cookieState || query.state !== cookieState) {
+        reply.clearCookie(OAUTH_STATE_COOKIE_NAME, { path: '/' });
+        reply.clearCookie(OAUTH_RETURN_TO_COOKIE_NAME, { path: '/' });
+        const errorUrl = new URL(returnPath, frontendUrl);
+        errorUrl.searchParams.set('auth_error', 'oauth_invalid_state');
+        return reply.redirect(errorUrl.toString());
       }
-      // Validación anti-CSRF del state.
-      if (!query.state || !cookieState || query.state !== cookieState) {
-        return reply.status(400).send({
-          statusCode: 400, error: 'Bad Request', message: 'Estado OAuth inválido. Reintenta el inicio de sesión.',
-        });
-      }
-      reply.clearCookie(OAUTH_STATE_COOKIE_NAME, { path: '/api/auth/oauth' });
+
+      reply.clearCookie(OAUTH_STATE_COOKIE_NAME, { path: '/' });
+      reply.clearCookie(OAUTH_RETURN_TO_COOKIE_NAME, { path: '/' });
 
       const { refreshToken, ...publicResponse } = await this.googleOAuthCallbackUseCase.execute(query.code);
 
@@ -317,16 +344,11 @@ export class AuthController {
         refreshTokenCookieOptions(7 * 24 * 60 * 60)
       );
 
-      const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173')
-        .split(',')[0]
-        .trim();
-
-      return reply.redirect(frontendUrl);
+      return reply.redirect(new URL(returnPath, frontendUrl).toString());
     } catch (error) {
-      const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173')
-        .split(',')[0]
-        .trim();
-      return reply.redirect(`${frontendUrl}?auth_error=oauth_failed`);
+      const errorUrl = new URL(returnPath, frontendUrl);
+      errorUrl.searchParams.set('auth_error', 'oauth_failed');
+      return reply.redirect(errorUrl.toString());
     }
   }
 

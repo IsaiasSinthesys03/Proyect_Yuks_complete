@@ -27,5 +27,9 @@ export function buildCheckoutRoutes(checkoutController: CheckoutController) {
     fastify.post('/checkout/coverage', { preHandler: authMiddleware }, async (request, reply) => {
       return checkoutController.checkCoverage(request, reply);
     });
+
+    fastify.post('/checkout/validate-cart', async (request, reply) => {
+      return checkoutController.validateCart(request, reply);
+    });
   };
 }

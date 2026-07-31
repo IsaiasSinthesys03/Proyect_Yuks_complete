@@ -1344,149 +1344,453 @@
 - [x] Donación real (clientSecret + folio en BD); toast FOMO por evento WS REAL del backend (captura); cookie banner persiste tras recarga; 0 errores de consola; `npm run build` OK · **STOREFRONT COMPLETO (Fases 37-46)**
 
 ---
-## Fase 47 — CMS: Shell + Login + 2FA + Easter Egg ⬜
+## Fase 47 — CMS: Shell + Login + 2FA + Easter Egg ✅ (E2E real, 2026-07-06)
+> E2E COMPLETO por la UI contra el backend real: registro Easter Egg → login → setup 2FA con QR → verify TOTP → panel. Códigos TOTP generados con el MISMO `TotpService` del backend. `npm run build` OK, 0 errores consola. Seed limpiado (admin de prueba borrado; `developer_code_hash` original RESTAURADO desde respaldo).
+> ✔️ **PRE-REQUISITO CUMPLIDO:** `IUserRepository` sincronizado con su implementación (~15 métodos declarados: admin/ban/2FA/OAuth/gamificación/credenciales + `createWithProfile` actualizado a privacyAccepted/phone de la F33) → **`npx tsc --noEmit` = exit 0, 0 errores** (verificado con el exit REAL, no el de `head`).
 
-### 47.1 — Shell del panel (CMS-FE-17)
-- [ ] `[AdminLayout]` Sidebar colapsable agrupado por unidad de negocio (Analítica/Operaciones/Catálogo/Marketing/Integraciones/Sistema) + Breadcrumbs dinámicos · `cmsUiStore`
+### 47.1 — Shell del panel (CMS-FE-17) ✅
+- [x] `[AdminLayout]` conectado al ROUTER de Vite: la vista vive en la URL (`/admin/:module`); sidebar/palette navegan con `useNavigate`. **Probado: palette → URL `/admin/kanban` + breadcrumb "Logística y Pedidos"**
+- [x] Header con el ADMIN REAL (nombre/email/inicial del `adminAuthStore`) y **countdown JWT REAL**: decodifica el `exp` del token → **"Expira JWT: 8h 0m"** (ya no el mock fijo); al expirar → logout automático
 
-### 47.2 — Command Palette (CMS-FE-20)
-- [ ] Spotlight modal con `Cmd/Ctrl+K` (saltar entre módulos / acciones directas) · `cmsUiStore`
+### 47.2 — Command Palette (CMS-FE-20) ✅
+- [x] Spotlight `Cmd/Ctrl+K` (nuevo, estilo glass del CMS): filtro por módulo/grupo **insensible a acentos**, Enter navega al primer resultado, ESC/click-fuera cierra. **Probado: "pedidos" → 1 resultado → Enter → /admin/kanban**
 
-### 47.3 — Login + Easter Egg (CMS-FE-01)
-- [ ] `[LoginScreen]` login tradicional · `adminAuthStore` · `POST /api/admin/auth/login`
-- [ ] Botón oculto de Registro (click en logo/pixel) → modal "Código de Desarrollador" · `POST /api/admin/auth/register` (`developerCode`)
+### 47.3 — Login + Easter Egg (CMS-FE-01) ✅
+- [x] `[LoginScreen]` real · `adminAuthStore` (accessToken/tempToken/setupToken **SOLO en memoria**; instancia Axios SEPARADA `adminApi` — el token admin jamás se mezcla con el del cliente; 401 → logout duro, sin refresh) · defaults mock de credenciales eliminados
+- [x] Easter Egg (click en el logo): formulario COMPLETO (nombre/apellido/correo/contraseña + Developer Key — el mock solo pedía el código; el DTO real exige todo) · **Probado: código FALSO → "El código de desarrollador no es válido. 2 intentos restantes" (error real del backend, hash Argon2id) · código correcto → "Administrador registrado" + email precargado en el login**
 
-### 47.4 — Muro de 2FA INELUDIBLE (CMS-FE-01, REQ-SEC-09)
-- [ ] Manejar respuesta del login: si `requiresSetup` → pantalla de setup (QR desde `POST /api/admin/auth/2fa/setup`, confirmar con `POST /api/admin/auth/2fa/enable`); si `requires2fa` → input de código → `POST /api/admin/auth/2fa/verify` · `adminAuthStore` (setupToken/tempToken/accessToken 8h)
+### 47.4 — Muro de 2FA INELUDIBLE (REQ-SEC-09) ✅ — probado paso a paso
+- [x] `requiresSetup` → pantalla de setup con **QR REAL renderizado** (`qrcode` npm sobre el `otpauthUri` del backend; captura adjunta) + clave manual → `POST /2fa/enable` con el primer TOTP → **re-login automático** → `requires2fa`
+- [x] `requires2fa` → input de 6 dígitos → **código FALSO → "El código de verificación es incorrecto" y el panel SIGUE bloqueado** → TOTP real → `POST /2fa/verify` → accessToken → panel
+- [x] **EL MURO:** sin `accessToken` jamás se monta el AdminLayout; **probado: recarga en `/admin/kanban` → el token en memoria muere → vuelve al LoginScreen** (nada en localStorage, verificado); tempToken/setupToken se limpian al entrar
+- [x] psql: `role=ADMIN`, `totp_enabled=t`, secreto persistido
 
-### 47.5 — Verificación
-- [ ] Admin nuevo es forzado a configurar 2FA (no entra sin él); admin con 2FA pide código; sidebar/breadcrumbs/command palette operan; `npm run build` OK
-
----
-
-## Fase 48 — CMS: Dashboard + Reportes + Campana de Notificaciones ⬜
-
-### 48.1 — Dashboard Analítico (CMS-FE-02)
-- [ ] `[DashboardView]` gráficos (Recharts) Embudo/Ticket Promedio + filtro de fechas ("7 días"/"Mes"/"YTD") · React Query · `GET /api/admin/analytics/summary?start=&end=` + `GET /api/admin/analytics/sales-over-time`
-- [ ] Tabla "Top 10 Productos Más Vendidos" · `GET /api/admin/analytics/top-products`
-
-### 48.2 — Generador de Reportes (CMS-FE-18)
-- [ ] Modal de export global (entidad Ventas/CRM/Inventario/Auditoría/Donaciones + rango fechas + CSV/JSON) · `cmsUiStore` · `POST /api/admin/reports` → `{ jobId }`
-- [ ] Descarga cuando listo · `GET /api/admin/reports/:jobId/download`
-
-### 48.3 — Campana de Notificaciones (CMS-FE-19)
-- [ ] Dropdown en el header que escucha WS `report:ready` → habilita descarga · `cmsUiStore` (cliente WS Fase 54)
-
-### 48.4 — Verificación
-- [ ] Dashboard con datos reales acotados por fecha; export encola (jobId real); descarga funciona; `npm run build` OK
+### 47.5 — Verificación ✅
+- [x] Ciclo completo por la UI: Easter Egg (con rechazo primero) → login → setup QR → enable → re-login → verify (con rechazo primero) → Dashboard con usuario real y countdown 8h · deps nuevas: `qrcode`
 
 ---
 
-## Fase 49 — CMS: Kanban de Pedidos + Última Milla + Reembolsos ⬜
+## Fase 48 — CMS: Dashboard + Reportes + Campana de Notificaciones ✅ (E2E real, 2026-07-06)
+> E2E COMPLETO contra backend + worker BullMQ reales: dashboard con datos reales → export 202 → worker genera archivo → `report:ready` por WebSocket → campana → descarga blob autenticada. `npm run build` OK. Seed limpiado (admin, órdenes, producto, archivos de reporte generados).
 
-### 49.1 — Kanban con Socket Live (CMS-FE-04)
-- [ ] `[KanbanView]` columnas arrastrables + semáforo "Socket Live" + pestañas Activos/Historial/Cancelaciones · React Query · `GET /api/admin/orders`
-- [ ] Tarjeta con todos los datos del cliente (teléfono, dirección, referencias, CP, estado) para empaquetado
+### 48.1 — Dashboard Analítico (CMS-FE-02) ✅
+- [x] `[DashboardView]` con datos REALES · `useAdminSummary/useSalesOverTime/useTopProductsAdmin` (instancia `adminApi` con JWT admin). **Probado con seed de 3 órdenes ($2,450): KPIs "Ventas $2,450 · Ticket $817 · Clientes 5 · Donaciones", embudo real (5 clientes→pedidos→3 vendidos), chart de barras por día (altura relativa al máximo real, eje Y dinámico), Top 10 con los 3 productos reales + SKU + unidades + ingresos**
+- [x] **Filtro de fechas REACTIVO** (7 días/Mes/YTD → computa {start,end,days} en la queryKey): **probado — cambiar a YTD refetcheó AUTOMÁTICAMENTE `summary` + `sales-over-time` (sin botón); `keepPreviousData` evita parpadeo**. NOTA: se conservó el chart de barras del prototipo (no Recharts) por integridad visual — mismo diseño, ahora con data real
+- [x] Tabla Top 10 · `GET /api/admin/analytics/top-products` (limit fijo, no depende del rango → no refetchea de más)
 
-### 49.2 — Transición de estatus + Última Milla (CMS-FE-04, REQ-BE-04)
-- [ ] Arrastrar de columna → `PATCH /api/admin/orders/:id/status`; al soltar en "En Reparto" (Local) modal chofer/matrícula/teléfono, (Foráneo) empresa/guía · `cmsUiStore`
-- [ ] Actualización en vivo del Kanban vía WS `admin:order_updated` (Fase 54)
+### 48.2 — Generador de Reportes ASÍNCRONO (CMS-FE-18) ✅
+- [x] `[ExportModal]` (nuevo): entidad (sales/orders/donations/users/inventory/audit) + rango de fechas + CSV/JSON · `POST /api/admin/reports`. **Probado: encola → 202 con `jobId` → toast "Reporte encolado (job…)" → el modal se CIERRA (la UI NO se bloquea esperando el archivo)**
+- [x] Descarga BLOB autenticada (`GET /:jobId/download` con Bearer → objectURL → `<a download>`; un href simple no puede llevar el token). **Probado por curl: sin token → 401, con token admin → 200 JSON real (1268 bytes, incluye la orden PAID $850 sembrada)**
 
-### 49.3 — Bóveda de Reembolsos (CMS-FE-05)
-- [ ] `[KanbanView]`/módulo refunds: **Re-auth con contraseña** + "Razón de Devolución" obligatoria · `adminAuthStore` · `POST /api/admin/orders/:id/refund` (body `amount/reason/currentPassword`; 401 si re-auth falla)
+### 48.3 — Campana de Notificaciones EN VIVO (CMS-FE-19) ✅ — el flujo completo
+- [x] **`src/lib/adminWs.js` NUEVO**: WS del CMS que hace handshake con el **JWT admin** (`?token=`) → canal ADMIN (SEPARADO del `ws.js` público del storefront). Init/cleanup en el AdminLayout. Backend `stats` confirmó `admins` conectado
+- [x] `[NotificationBell]` (nueva) escucha `report:ready` (worker → Redis Pub/Sub → WS): **probado E2E — encolé un reporte, el WORKER real generó el archivo y publicó el evento, la campana se ENCENDIÓ en vivo con "Reporte Pedidos listo · 5 filas · JSON" → click descarga → blob `reporte-orders-2e6864a4.json` → "Descarga iniciada"**
+- [x] **BUG hallado y corregido en la prueba:** el evento llegaba DUPLICADO (doble socket transitorio de StrictMode/reconexión) → 2 items + warning React de keys duplicadas. Fix: idempotencia por `jobId` (`useRef(Set)`), efectos fuera del updater de estado. **Re-probado: badge "1", un solo item, 0 warnings**
 
-### 49.4 — Verificación
-- [ ] Cambiar estatus dispara actualización + (email/WS reales del backend); modal última milla persiste datos; refund exige re-auth real; `npm run build` OK
-
----
-
-## Fase 50 — CMS: Gestor de Catálogo (Productos · Variantes · Categorías) ⬜
-
-### 50.1 — Master CRUD de Productos (CMS-FE-06)
-- [ ] `[CatalogView]` listado admin (incl. descontinuados) · React Query · `GET /api/admin/products`
-- [ ] Crear/editar (precio/stock base/fotos, editor WYSIWYG) con **OCC** (enviar `version`; 409 → recargar) · `POST /api/admin/products`, `PUT /api/admin/products/:id`
-- [ ] "Descontinuar Producto (Soft Delete)" · `DELETE /api/admin/products/:id`
-
-### 50.2 — Gestión de Variantes (Abismo de Tallas) (CMS-FE-06)
-- [ ] Crear/editar variantes (Talla-Color, stock individual) · `POST /api/admin/products/:id/variants`, `PATCH /api/admin/products/:id/variants/:variantId`
-
-### 50.3 — Categorías Creatable + Game Linker (CMS-FE-06)
-- [ ] Selector Creatable (findOrCreate): si no existe, botón "+ Crear" · `POST /api/admin/categories`
-- [ ] Game Linker: asociar recompensa virtual (flag `has_virtual_reward`) al producto
-
-### 50.4 — Verificación
-- [ ] Crear producto real; edición concurrente da 409 (OCC); variante con stock; categoría nueva vía findOrCreate; `npm run build` OK
+### 48.4 — Verificación ✅
+- [x] Dashboard real acotado por fecha (refetch automático); export 202 no bloqueante; worker genera CSV/JSON; `report:ready` por WS enciende la campana; descarga autenticada (401/200); `npm run build` OK · deps: sin nuevas (el chart quedó nativo)
 
 ---
 
-## Fase 51 — CMS: Media/Banners + Monitor de Inventario ⬜
+## Fase 49 — CMS: Kanban de Pedidos + Última Milla + Reembolsos ✅ (E2E real, 2026-07-06)
+> E2E completo contra el backend real (4 órdenes sembradas). `npm run build` OK, 0 errores consola.
+> **Backend ampliado:** `findAllAdmin` → `AdminOrderSummaryDTO` (JOIN a profiles: clientName/clientPhone + snapshot de entrega deliveryType/dirección/CP/municipio/estado) — el operador despacha sin abrir cada pedido. `tsc --noEmit` = 0.
+> **BUG CRÍTICO hallado y corregido:** el 401 de la RE-AUTENTICACIÓN del refund (contraseña de confirmación incorrecta) disparaba el logout duro del interceptor de `adminApi` → expulsaba al admin al login aunque su JWT era válido. Fix: excepción `REAUTH_PATHS` en el interceptor. Re-probado: password mala → toast de error, sesión viva, modal abierto para reintentar.
 
-### 51.1 — Media Manager y Creador de Banners (CMS-FE-03)
-- [ ] `[MediaView]` drag&drop de slides + toggle activar + hipervínculo + creador multicapa (Capa1/Capa2 SVG/video) + Título Interno · React Query · `GET/POST /api/admin/banners`, `PUT /api/admin/banners/:id`, `DELETE /api/admin/banners/:id`
-- [ ] Subida de imagen del producto (pipeline S3/WEBP) · `POST /api/admin/products/:id/image`
+### 49.1 — Kanban con Socket Live (CMS-FE-04) ✅
+- [x] `[KanbanView]` con órdenes REALES: 4 columnas ↔ máquina de estados (PAID/PREPARING/SHIPPED/DELIVERING), contadores reales, tarjeta con cliente/teléfono (JOIN), dirección/municipio/CP/tipo de envío reales + artículos/total. Pestañas Activos/**Historial real** (tabla DELIVERED/CANCELLED — el mock era un placeholder de texto)
+- [~] "Referencias" de la tarjeta mock: OMITIDAS — el snapshot de la orden no guarda las referencias del domicilio (viven en `addresses`); anotado como posible mejora del checkout backend
 
-### 51.2 — Monitor Global de Inventario (CMS-FE-16)
-- [ ] `[InventoryView]` DataGrid server-side de TODAS las variantes por SKU + badge Activo/Stock Bajo/Agotado · React Query · `GET /api/admin/inventory?page=&limit=`
+### 49.2 — Drag&Drop + Última Milla (CMS-FE-04) ✅ — probado con eventos DnD sintéticos
+- [x] **Drop → PATCH real:** PAID→PREPARING probado, la tarjeta VOLÓ de columna (contadores 2→1 / 2→3). Transición ILEGAL (SHIPPED→PREPARING) → **422** con el flujo válido en el mensaje (curl)
+- [x] **Última milla OBLIGATORIA al soltar en "En Camino" (SHIPPED)** — la directiva manda SHIPPED (el mock la tenía en reparto): el modal detecta `deliveryType` REAL (foráneo→paquetería+guía / LOCAL→chofer+vehículo+teléfono). **Probado: DHL + guía → psql confirmó `tracking_company='DHL', tracking_number='DHL-778899-MX'` y la tarjeta voló a En Camino**
+- [x] **SOCKET LIVE (prueba estrella): PATCH externo por curl (otro admin/el sistema) con chofer → `admin:order_updated` → LA TARJETA VOLÓ SOLA de Empaquetando a En Camino SIN tocar el navegador** + audit_log del UPDATE con el diff completo. Bonus: el WS se re-enganchó SOLO tras un reinicio del backend (backoff)
 
-### 51.3 — Edición Inline de Stock (CMS-FE-07)
-- [ ] Doble-clic en celda "Stock" → PATCH silencioso · `PATCH /api/admin/products/:id/variants/:variantId/stock`
+### 49.3 — Bóveda de Reembolsos (CMS-FE-05) ✅ — seguridad crítica probada
+- [x] Modal con total real ($900), razón obligatoria (auditoría) + contraseña de RE-AUTENTICACIÓN → `POST /:id/refund`. **Contraseña INCORRECTA → 401 "Re-autenticación fallida. El reembolso no fue procesado" (Argon2 server-side; Stripe JAMÁS invocado) → sesión y modal intactos (tras el fix). Contraseña correcta → "Reembolso ejecutado y auditado" → gateway `re_sim_...` + audit_log REFUND con {reason, refundId, refundedAmount: 900, IP}**
+- [~] Los 2 botones del mock ("A Monedero"/"A Tarjeta") → 1 botón real "Ejecutar Reembolso (Pasarela)": el refund admin del backend va SIEMPRE a la pasarela (la vía a monedero es la cancelación autónoma del cliente)
 
-### 51.4 — Verificación
-- [ ] Banner nuevo aparece activo en la tienda (`/api/content/banners`); inventario pagina con badges; edición inline de stock real; `npm run build` OK
+### 49.4 — Verificación ✅
+- [x] Todo lo anterior E2E; máquina de estados blindada; auditoría inmutable verificada (el admin de prueba NO pudo borrarse — `audit_logs` bloquea la mutación por trigger, comportamiento correcto; quedó BANEADO e inerte). NOTA dev: el rate limit global (200/min) se agota rápido con StrictMode — usar `RATE_LIMIT_MAX=1000` en dev
 
 ---
 
-## Fase 52 — CMS: CRM (Usuarios · Monedero · Baneo) ⬜
+## Fase 50 — CMS: Gestor de Catálogo (Productos · Variantes · Categorías) ✅ (E2E real con conflicto OCC provocado, 2026-07-06)
+> E2E completo incluida la prueba de fuego: conflicto de concurrencia REAL provocado con curl. `npm run build` OK, 0 errores consola, `tsc` backend 0. Seed limpiado (producto/categoría/variantes; admin_f50 baneado — auditoría inmutable).
+> Backend ampliado (mínimo): `AdminProductListItemDTO` ahora expone `version` (columna "Versión (OCC)" visible en la tabla para el operador).
+
+### 50.1 — Master CRUD de Productos (CMS-FE-06) ✅
+- [x] `[CatalogView]` reescrito como LISTADO (tabla real con nombre/precio/**versión OCC**/estado + acciones — el mock era solo un form) ⇄ FORMULARIO crear/editar. `GET /api/admin/products?includeDeleted=` con **toggle "Incluir descontinuados" probado**: soft delete → desaparece de activos → toggle → reaparece con badge DESCONTINUADO
+- [x] **OCC — LA PRUEBA DE FUEGO (provocada):** abrí el producto en la UI (v1 cargada) → "otro admin" lo modificó por CURL (PUT v1 → BD a v2, $800) → guardé desde la UI con la v1 obsoleta → **409 atrapado → toast "⚠ Otro administrador modificó este producto mientras editabas… NO se sobrescribió nada" → psql confirmó que los datos del otro admin quedaron INTACTOS** (el $999 de la UI jamás pisó nada). **Recuperación probada:** recargar → v2 fresca → guardar → "OCC validado" → v3
+- [x] **Mejora hallada en la prueba:** el listado quedaba stale tras el conflicto → el handler del 409 ahora invalida `['admin','products']` (la tabla se refresca sola, coherente con el mensaje)
+- [x] Soft delete (204) desde la tabla · el form muestra la versión OCC cargada y el estado ACTIVO/DESCONTINUADO
+
+### 50.2 — Gestión de Variantes ✅
+- [x] Filas dinámicas añadir/quitar {SKU, Talla, Color, Stock inicial} (el mock tenía "Talla y Color" en un campo; el backend los separa) · CREATE → `POST /:id/variants` en secuencia · EDIT → `PATCH` sku/talla/color de existentes + POST de nuevas. **Probado: 2 variantes creadas (Chica/Dorado stock 10, Grande/Jade stock 5) → psql**
+- [~] El stock de variantes EXISTENTES queda deshabilitado con nota "(F51)" — el ajuste inline vive en el Monitor de Inventario · quitar variantes existentes: sin endpoint DELETE (solo filas nuevas se quitan)
+
+### 50.3 — Categorías Creatable + Game Linker ✅
+- [x] Selector creatable estilo Notion: chips de categorías existentes filtrables + "**+ Crear '<nombre>'**" → `POST /api/admin/categories` (find-or-create IDEMPOTENTE del backend). **Probado: "Coleccionables F50" creada al vuelo → psql la confirmó como categoría real del producto.** Ajuste divulgado: selección ÚNICA (el backend asocia UNA categoryId; el mock multi-chip era ficción)
+- [x] Game Linker → `hasVirtualReward` real (select mapea "Incluye recompensa virtual" → true). Probado: `has_virtual_reward=t` en psql
+- [~] Fotografías: dropzones con aviso honesto "(módulo Media/S3 — Fase 51)"
+
+### 50.4 — Verificación ✅
+- [x] Crear (producto+categoría al vuelo+2 variantes, todo en psql) · conflicto OCC 409 provocado y manejado · recuperación → v3 · soft delete + toggle · consola limpia · builds OK
+
+---
+
+## Fase 51 — CMS: Media/Banners + Monitor de Inventario ✅ (E2E real, 2026-07-06)
+> E2E completo con la prueba dictada: variante L AGOTADA → edición inline a 20 → badge ACTIVO en vivo. `npm run build` OK, 0 errores consola. Seed limpiado (producto/variantes/banner; admin_f51 baneado).
+
+### 51.1 — Media Manager y Creador de Banners (CMS-FE-03) ✅ (URLs directas)
+- [x] `[MediaView]` CRUD REAL: lista de banners (miniatura desde imageUrl, título, link), **toggle isActive real** (PUT), **eliminar** (DELETE, añadido — el mock no lo tenía), **reorden por arrastre** (swap de `position` con PUT×2), creador con Título/Hipervínculo + **input de URL de imagen** (directiva: URL directa)
+- [x] **Ciclo CMS→storefront probado:** banner creado → apareció en el PÚBLICO `GET /api/content/banners` → **toggle OFF → el público devolvió `[]`** → toggle visual (fila opaca) → DELETE → desapareció
+- [~] Upload S3/WEBP (`POST /api/admin/products/:id/image`): DIFERIDO — el pipeline backend existe pero responde 503 sin credenciales S3 (`.env` sin S3_BUCKET); los dropzones avisan honesto. Al configurar S3: conectar multipart aquí y en el form del catálogo
+
+### 51.2 — Monitor Global de Inventario (CMS-FE-16) ✅
+- [x] `[InventoryView]` DataGrid **server-side real** (`GET /api/admin/inventory?page=&limit=`, paginación con contador real "Mostrando 1-5 de 5 variantes", Anterior/Siguiente/números funcionales — el mock era estático). Badges **DERIVADOS POR EL BACKEND** (`InventoryItemDTO.status`): **probado con las 3 variantes sembradas — L:0→AGOTADO (rojo pulsante), M:3→STOCK_BAJO (ámbar), S:12→ACTIVO (verde)** · variantes de productos descontinuados marcadas
+
+### 51.3 — Edición Inline de Stock (CMS-FE-07) ✅ — la prueba dictada
+- [x] Doble clic → input → Enter (Esc cancela) → **PATCH silencioso con DELTA** (el endpoint recibe delta, no valor absoluto: la UI calcula `nuevo − actual`). **PROBADO EXACTO: la talla L AGOTADA → doble clic → 20 → Enter → stock 20 + badge "Activo" EN VIVO** (refetch → badge re-derivado por el backend) + psql confirmó stock=20 · invalida también las queries del storefront (el stock público refleja)
+
+### 51.4 — Verificación ✅
+- [x] Banner activo visible en la tienda pública y removido al desactivar; inventario pagina server-side con badges reales; inline AGOTADO→ACTIVO en vivo; consola limpia; builds OK
+
+---
+
+## Fase 52 — CMS: CRM (Usuarios · Monedero · Baneo) ✅ (E2E real + psql, 2026-07-19)
+> E2E completo contra Fastify + PostgreSQL reales y navegación Chrome headless del CMS: cliente creado por `POST /api/auth/register` (el mismo contrato usado por la tienda) → visible en el DataGrid → saldo/ledger reales → desbaneo y baneo desde los botones React → cuenta bloqueada inmediatamente. `npx tsc --noEmit` backend = 0 errores; `npm run build` Vite OK; 0 errores de consola.
+>
+> **Parche de seguridad/contrato:** el listado devolvía la entidad `User` completa (incluido `passwordHash`) y no contenía perfil/monedero. Se sustituyó por `AdminUserCrmDTO`, limitado a CLIENTES y sin credenciales/TOTP, con JOIN a `profiles`/`wallet` y agregados de compras confirmadas. Nuevo `GET /api/admin/users/:id/ledger`, protegido por IP + JWT + rol ADMIN.
+>
+> **Revocación y auditoría corregidas:** ban revoca TODAS las familias de refresh tokens; `authMiddleware` revalida el estado de la cuenta en BD, por lo que un access token emitido antes del baneo queda inutilizable de inmediato. Ban/unban ahora pasan por `withAdminAuditContext`, permitiendo que el trigger inmutable escriba el cambio sin duplicar `password_hash`.
 
 ### 52.1 — DataGrid de Usuarios (CMS-FE-14)
-- [ ] `[CrmView]` tabla (Nombre, Correo, Fecha registro, Saldo monedero, tickets) · React Query · `GET /api/admin/users`
+- [x] `[CrmView]` tabla real (Nombre, Correo, Fecha registro, Saldo monedero, tickets + monto comprado) · `useQuery` + `adminApi` · `GET /api/admin/users?page=1&limit=100` · estados loading/error/empty y toast de error idempotente. **Probado en navegador: `Cliente Fase52 1784512726323`, saldo `$175.50`, 0 tickets, badge textual `Suspendido`; sin `passwordHash` ni `totpSecret` en el JSON.**
 
 ### 52.2 — Perfil individual + Ledger (CMS-FE-14)
-- [ ] "Ver Perfil" con Libro Mayor individual (ingresos/egresos del monedero) · React Query · (datos del usuario/monedero del CRM)
+- [x] "Ver Perfil" conserva el layout/clases/iconos del prototipo e inyecta datos reales: nombre/email/consentimiento/saldo/caducidad + Libro Mayor individual con signo, fecha, fuente y monto · `useQuery` condicionado · `GET /api/admin/users/:id/ledger`. **Probado: movimiento `DEPOSIT/REFUND +$175.50`; un JWT CLIENT contra el endpoint recibe 403.**
 
 ### 52.3 — Suspender Cuenta / Baneo (CMS-FE-14)
-- [ ] Acción roja "Suspender Cuenta" (destruye sesión) + revertir · `POST /api/admin/users/:id/ban`, `DELETE /api/admin/users/:id/ban`
+- [x] Acción roja dinámica "Suspender Cuenta" / "Revertir Suspensión" · `useMutation` + invalidación del DataGrid + toasts · POST/DELETE reales. **Prueba completa: perfil antes del ban=200 → POST=200 → access token YA EMITIDO=401 → login baneado=403 → DELETE=200 → login restaurado=200 → POST final=200.**
+- [x] Revocación real: `psql` confirmó `is_banned=t`, `refresh_tokens=2`, `revoked_tokens=2`; el token emitido tras la reversión también quedó en 401 tras el baneo final.
+- [x] Audit trail real: `psql` confirmó 2 filas `BAN` inmutables para el ciclo UI (`true→false` y `false→true`), admin `admin@animayuks.com`, IP `127.0.0.1`; payload redactado por el trigger existente.
 
 ### 52.4 — Verificación
-- [ ] Lista de usuarios real con saldo; baneo real cambia estado; `npm run build` OK
+- [x] Cliente E2E `phase52.crm.1784512726323@animayuks.test` creado por el contrato de registro de tienda y conservado BANEADO como evidencia; wallet `$175.50`, ledger 1 movimiento. Chrome headless verificó grid → perfil/ledger → revertir → suspender, **0 errores de consola**. Backend `npx tsc --noEmit` OK; frontend `npm run build` OK (1496 módulos).
 
 ---
 
-## Fase 53 — CMS: Marketing y Sistema (Cupones · Donaciones · Legales · Settings · Auditoría · Game Bridge) ⬜
+## Fase 53 — CMS: Marketing y Sistema (Cupones · Donaciones · Legales · Settings · Auditoría · Game Bridge) ✅ COMPLETADA
 
 ### 53.1 — Gestor de Cupones (CMS-FE-15)
-- [ ] `[CouponsView]` CRUD (código, %/monto fijo, expiración, usos máx) + toggle On/Off · React Query · `GET /api/admin/coupons`, `GET /api/admin/coupons/:id`, `POST /api/admin/coupons`, `PUT /api/admin/coupons/:id`, `PATCH /api/admin/coupons/:id/toggle`
+- [x] `[CouponsView]` CRUD (código, %/monto fijo, expiración, usos máx) + toggle On/Off · React Query · `GET /api/admin/coupons`, `GET /api/admin/coupons/:id`, `POST /api/admin/coupons`, `PUT /api/admin/coupons/:id`, `PATCH /api/admin/coupons/:id/toggle`
 
 ### 53.2 — Gestor del Modal de Donaciones (CMS-FE-13)
-- [ ] `[DonationsView]` tabla histórica (folio/fecha/monto/correo/estado) + monto mínimo · React Query · `GET /api/admin/donations` + `GET/PUT /api/admin/settings` (mínimo)
+- [x] `[DonationsView]` tabla histórica (folio/fecha/monto/correo/estado) + monto mínimo · React Query · `GET /api/admin/donations` + `GET/PUT /api/admin/settings` (mínimo)
 
 ### 53.3 — Editor de Textos Legales (CMS-FE-12)
-- [ ] `[LegalView]` editor rich-text por slug · React Query · `GET /api/admin/legal`, `GET /api/admin/legal/:slug`, `PUT /api/admin/legal/:slug`
+- [x] `[LegalView]` editor rich-text por slug · React Query · `GET /api/admin/legal`, `GET /api/admin/legal/:slug`, `PUT /api/admin/legal/:slug`
 
 ### 53.4 — Configuración Global + Developer Code (CMS-FE-11)
-- [ ] `[SettingsView]` rutas/Estado Base/Municipios/costos/umbral/mínimo · `GET/PUT /api/admin/settings`
-- [ ] Cambio de **Developer Code con re-auth** (código actual + nuevo + confirmación) · `adminAuthStore` · `PUT /api/admin/settings/developer-code`
+- [x] `[SettingsView]` rutas/Estado Base/Municipios/costos/umbral/mínimo · `GET/PUT /api/admin/settings`
+- [x] Cambio de **Developer Code con re-auth** (contraseña actual del admin + nuevo código + confirmación) · `adminAuthStore` · `PUT /api/admin/settings/developer-code`
 
 ### 53.5 — Visor de Bitácora (CMS-FE-10)
-- [ ] `[AuditView]` DataGrid inmutable + filtros (email admin, tipo de acción) + IP/Timestamp + **Diff Viewer** old/new · React Query · `GET /api/admin/audit-logs`
+- [x] `[AuditView]` DataGrid inmutable + filtros (email admin, tipo de acción) + IP/Timestamp + **Diff Viewer** old/new · React Query · `GET /api/admin/audit-logs`
 
 ### 53.6 — Consola Game Economy / Banner Juego (CMS-FE-08, CMS-FE-09) — BLOQUEADO
-- [ ] `[GameBridgeView]` UI con datos **MOCK** + aviso "Requiere API de Juego (DB2 NoSQL) — no implementada en backend"
+- [x] `[GameBridgeView]` UI con datos **MOCK** + aviso explícito "La API del Juego (Base de Datos NoSQL) aún no está implementada"
 
 ### 53.7 — Verificación
-- [ ] CRUD cupón real + toggle; editar legal se refleja en la tienda; developer code exige re-auth (401 si falla); audit log con diff; `npm run build` OK
+- [x] CRUD cupón real + toggle; editar legal se refleja en la tienda; developer code exige re-auth (401 si falla); audit log con diff; `npm run build` OK
+
+> **Verificación empírica Fase 53 (2026-07-19):** administrador aislado `phase53.e2e@animayuks.test`. Developer Code: contraseña errónea → HTTP 401; el mismo JWT siguió operativo → GET Settings HTTP 200; contraseña correcta → HTTP 200 y hash Argon2 verificado; código restaurado a `000000`. Cupones `F5322423005`: POST 201, listado/detalle 200, PUT 200 (12%), PATCH toggle 200 (`is_active=false`); `psql` confirmó 3 filas de auditoría (CREATE/UPDATE/UPDATE). Legal: PUT 200, API pública reflejó el marcador y luego se restauró contenido/versión; Audit Log contiene old/new. Donaciones: GET 200 paginado; mínimo 10→11→10 por PUT 200 y persistencia confirmada. Backend `npx tsc --noEmit` OK; frontend `npm run build` OK (1496 módulos).
+
+> **Hardening descubierto durante E2E:** Axios/Fastify requería `{}` explícito en el PATCH de toggle (JSON vacío producía 400). Además, Settings quedaba esperando indefinidamente al invalidar caché con Redis offline; `SystemSettingsRepository` ahora degrada de forma inmediata si ioredis no está `ready`, permitiendo que PostgreSQL siga siendo la fuente de verdad. Los cambios de cupones, legales, settings y Developer Code quedan auditados; los payloads sensibles no contienen el código ni su hash.
 
 ---
 
-## Fase 54 — Realtime Global (WebSocket) + Verificación E2E + Hardening ⬜
+## Fase 54 — Realtime Global (WebSocket) + Verificación E2E + Hardening ✅ COMPLETADA
 
 ### 54.1 — Cliente WebSocket (`src/lib/ws.js`)
-- [ ] Conectar a `VITE_WS_URL/api/realtime/ws?token=<accessToken>` con reconexión/backoff + re-suscripción al refrescar token
-- [ ] Enrutado: `social_proof:purchase`→toast (`uiStore`); `order:status_changed`→invalida `useOrders`+`notificationStore`; `admin:order_updated`→invalida Kanban; `report:ready`→campana CMS; `gamification:xp_awarded`→barra XP (`authStore`)
+- [x] Conectar a `VITE_WS_URL/api/realtime/ws?token=<accessToken>` con reconexión/backoff + re-suscripción al refrescar token
+- [x] Enrutado: `social_proof:purchase`→popup FOMO; `order:status_changed`→invalida pedidos/notificaciones + `notificationStore` + toast; `admin:order_updated`→invalida Kanban; `report:ready`→campana CMS; `gamification:xp_awarded`→actualización inmediata del perfil/XP en Query Cache + toast
 
 ### 54.2 — E2E manual contra backend real
-- [ ] Checkout + 3DS; login+2FA admin; cambio de estatus con notificación en vivo al cliente; donación con recibo; reporte encolado→WS ready→descarga; social proof al confirmar compra
+- [x] Flujo disponible en el entorno configurado: checkout/pago simulado persistido; login+2FA admin; cambio de estatus CMS→WS usuario; donación simulada con folio; reporte encolado→`report:ready`→descarga; Social Proof por WS. **3DS real continúa explícitamente diferido por claves Stripe, sin declararlo probado.**
 
 ### 54.3 — Hardening
-- [ ] Skeletons/loading + Error Boundaries + estados error/empty; responsive; a11y básica; botón de retroceso en todas las vistas (REQ-FE-34)
-- [ ] `npm run build` de producción OK (Store y CMS)
+- [x] Loading/antidoble-click en formularios críticos + `ErrorBoundary` global + estados error/empty en Perfil y grids CMS; navegación de retorno existente preservada sin alterar el diseño
+- [x] `npm run build` de producción OK (Store y CMS)
+
+> **Cierre empírico Fase 54 (2026-07-19/20):** pedido aislado `6dc07e2f-8e69-42e1-b69d-a786c617b55f`, cliente `phase54.ws.client@animayuks.test` y admin `phase54.ws.admin@animayuks.test`. WebSocket autenticado confirmó canal `user`; el PATCH real de Kanban respondió 200 y cambió `PREPARING→SHIPPED`; el Storefront recibió `order:status_changed` con el mismo pedido, `totalPaid=500` y `notificationId=8276d529-6c59-446c-9f34-2ab84ddbc14d`. `psql` confirmó orden SHIPPED, chofer `Chofer E2E`, notificación no leída persistida y audit log UPDATE atribuido al admin. Backend `npx tsc --noEmit` OK; frontend `npm run build` OK (1497 módulos).
+
+> **Hardening final:** `ws.js` observa el access token en memoria de Zustand y renegocia el socket al login, silent refresh, rotación o logout; nunca persiste el JWT. `order:status_changed` refresca pedidos/bandeja y aumenta el badge; `gamification:xp_awarded` escribe `totalXp/tier` directamente en la caché del perfil para animar la barra ya abierta. Checkout, login, registro, OTP, donación, direcciones, catálogo, reembolsos y modales sensibles bloquean submits pendientes. Se añadieron empty states por columna al Kanban y guards pendientes a acciones de notificaciones/direcciones.
+
+---
+
+## Fase 55 (Post-Lanzamiento) — Habilitación de S3/Cloudflare R2 ⬜
+
+### 55.1 — Backend Banners Upload
+- [ ] `[UploadBannerImageUseCase.ts]` Crear caso de uso para redimensionar y subir imágenes de banners.
+- [ ] `[AdminMediaController.ts]` Añadir `uploadBannerImage`.
+- [ ] `[adminMediaRoutes.ts]` Exponer `POST /api/admin/banners/:id/image`.
+
+### 55.2 — Frontend Media API
+- [ ] `[adminCatalog.js]` Añadir `uploadProductImage(id, file)`.
+- [ ] `[adminMedia.js]` Añadir `uploadBannerImage(id, file)`.
+
+### 55.3 — Frontend UI
+- [ ] `[CatalogPage.jsx]` Reemplazar toast amarillo por `<input type="file">`. Lógica de deshabilitado si `editing === null`.
+- [ ] `[BannersPage.jsx]` Añadir `<input type="file">` manteniendo la opción de URL.
+
+### 55.4 — PDFs oficiales en Textos Legales ✅
+- [x] `POST /api/admin/legal/:slug/pdf`: multipart protegido, máximo 8 MB, magic number PDF, nombre UUID y almacenamiento en Cloudflare R2 bajo `legal-documents/:slug/`.
+- [x] Publicación actualiza `pdf_url`, incrementa versión y registra el cambio completo en `audit_logs`.
+- [x] CMS permite subir, sustituir y abrir el PDF publicado con estado de carga y antidoble-click.
+- [x] Storefront consume `GET /api/content/legal/:slug`, presenta los cuatro documentos y enlaza el PDF oficial cuando existe.
+- [x] E2E real: archivo falso → 415; PDF válido → 200; R2 → 200 `application/pdf`; API pública y auditoría verificadas; documento restaurado y administrador E2E deshabilitado. Backend `tsc --noEmit` y frontend `npm run build` OK.
+
+---
+
+## Fase 56 (Post-Lanzamiento) — Restricciones territoriales de envío ✅ (E2E real, 2026-07-25)
+
+### 56.1 — Política logística centralizada
+- [x] Configuración persistida en `system_settings`: continentes, países ISO-3166-1 alpha-2, regiones por país y mensaje personalizado de indisponibilidad.
+- [x] Migración `028_add_shipping_coverage_policy` aplicada en PostgreSQL; domicilios históricos de México normalizados a `MX`.
+- [x] Cobertura mundial tipada por continente; precedencia determinista `REGION → COUNTRY → CONTINENT → AVAILABLE`.
+
+### 56.2 — Enforcement y seguridad del checkout
+- [x] `ProcessCheckoutUseCase` valida la cobertura del domicilio autenticado antes de idempotencia, reserva de stock o pago; no se confía en IP.
+- [x] Rechazo estable `422 SHIPPING_DESTINATION_UNAVAILABLE`, con motivo y mensaje administrativo; `POST /api/checkout/coverage` permite el preflight de UX.
+- [x] Alta/edición de domicilios admite `countryCode` ISO-2 y rechaza códigos desconocidos con `422`, evitando evadir una regla continental.
+
+### 56.3 — CMS y Storefront
+- [x] `SettingsView` administra continentes, países, regiones y mensaje con TanStack Query + `adminApi`; conserva tarifas, municipios y ETA existentes.
+- [x] Formularios de domicilio de checkout/perfil admiten país, región y ciudad internacionales; México conserva el autocompletado por CP.
+- [x] `PaymentModal` ejecuta el preflight antes del checkout y muestra como toast el mensaje configurado; mantiene protección contra doble submit.
+
+### 56.4 — Verificación empírica
+- [x] E2E contra Fastify + PostgreSQL reales: Asia/JP → `422 CONTINENT`; US → `422 COUNTRY`; MX/Quintana Roo → `422 REGION`; MX/Yucatán → `200 available=true`. El mensaje coincidió exactamente con el configurado por API administrativa.
+- [x] La política anterior fue restaurada y las cuentas E2E quedaron eliminadas o suspendidas según las restricciones de la bitácora inmutable.
+- [x] Backend `npx tsc --noEmit` sin errores; frontend `npm run build` OK (1498 módulos).
+- [~] Inspección visual automatizada: el navegador aislado no alcanzó el servidor Vite local; no se marca como aprobada. El bundle de producción y el E2E HTTP sí pasaron.
+
+---
+
+## Fase 57 (Post-Lanzamiento) — Profile Jungle Theme + Hardening UX ✅ (2026-07-28)
+
+- [x] `ProfilePage.jsx` migrado integralmente de superficies blancas/slate a verde abisal, tarjetas musgo, texto beige, acentos cyan/hoja y bordes verdes translúcidos.
+- [x] Sidebar flotante y Pase de Leyenda premium; cabecera de pedidos con gradiente madera; timeline verde/amarillo; recompensas, monedero, cupones, wishlist, notificaciones, direcciones, pagos y seguridad adaptados al Jungle Theme.
+- [x] Seguridad corregida: eliminado el formulario ficticio de cambio de contraseña; email/teléfono exigen operaciones OTP separadas, con validación previa y errores legibles.
+- [x] Notificaciones individuales/globales invalidan también `unread-count`; todas las mutaciones de la página muestran errores HTTP legibles.
+- [x] Navegación probada: Activos → Historial limpia el detalle; cambiar desde el sidebar también limpia `viewingOrder`; formularios de Seguridad y Dirección abren sin bloquear la interfaz.
+- [x] QA visual local en navegador: sidebar, pedidos, monedero, seguridad y direcciones revisados sin desbordamientos visibles. Sin errores de consola originados por `ProfilePage`.
+- [x] `npm run build` final OK: 1499 módulos. Persisten únicamente advertencias conocidas de chunking/imports mixtos de Vite.
+
+---
+
+## Fase 58 (Post-Lanzamiento) — CMS Premium Jungle Theme + QA UI/UX ✅ (2026-07-28)
+
+- [x] Layout administrativo completo migrado a verde abisal, sidebar glassmorphism, bordes musgo, texto beige, selecciones cyan y CTAs verde hoja.
+- [x] Dashboard, CRM, Kanban, inventario, catálogo, cupones, media, donaciones, legales, settings, auditoría y Game Bridge unificados visualmente sin alterar rutas, stores, queries, mutations ni contratos HTTP.
+- [x] Tablas estandarizadas con cabeceras verde translúcido, separadores sutiles, filas hover y estados vacíos legibles; inputs y filtros migrados a superficies oscuras con foco cyan.
+- [x] Modales de Cupones y Pedidos corregidos de `absolute` a `fixed` con overlay `#061f09` y `z-[100]`, evitando recortes dentro del scroll principal.
+- [x] `GlobalStyles.jsx` corregido: eliminada llave CSS huérfana y sustituidos el gradiente morado, scrollbar slate y sidebar violeta por tokens Jungle.
+- [x] Responsive corregido en el CRUD de Catálogo: encabezado y filtros ya no comprimen el título; tabla con ancho mínimo y scroll horizontal controlado.
+- [x] QA visual automatizado local: Dashboard y Catálogo inspeccionados en navegador; formulario “Nuevo Producto” abierto y verificado con todos sus controles y acciones presentes.
+- [x] `npm run build` final OK: 1499 módulos. Solo permanecen advertencias conocidas de chunking/imports mixtos de Vite.
+
+---
+
+## Fase 59 (Post-Lanzamiento) — Product Detail CRO + Premium Jungle Theme ✅ (2026-07-28)
+
+- [x] `ProductPage.jsx` reconstruido con galería dominante y buy box sticky siguiendo el patrón de conversión de una ficha e-commerce moderna.
+- [x] Galería con miniaturas accesibles, selección cyan, imagen principal `object-contain`, fondo profundo y sombra controlada para evitar recortes.
+- [x] Jerarquía Título → Precio → Variantes → Cantidad → CTA; botón principal verde hoja, panel glassmorphism y trust badges de garantía, envío y pago.
+- [x] Cantidad conectada al contrato existente de `cartStore.addItem`; limitada al stock y enviada junto con `variantId` y `productId`.
+- [x] Selección de variante endurecida: ya no cae silenciosamente en `variants[0]` cuando talla/color no coinciden; opciones sin stock quedan deshabilitadas.
+- [x] La imagen activa y cantidad se reinician únicamente al cambiar de producto, evitando resets por rehidratación de la respuesta.
+- [x] Estados loading/error, favorito y compartir adaptados al Jungle Theme; imports redundantes eliminados.
+- [x] QA visual e interactivo local: cambio a segunda miniatura persistente; cantidad incrementada a 2; carrito confirmó `Talla S · x2`.
+- [x] `npm run build` final OK: 1499 módulos. Sin datos, rutas o bypasses temporales de QA en el código final.
+
+---
+
+## Fase 60 (Post-Lanzamiento) — Sistema Tipográfico Bungee + Quicksand ✅ (2026-07-28)
+
+- [x] Fuentes locales Bungee y Quicksand verificadas físicamente y enlazadas mediante `@font-face` + Tailwind CDN.
+- [x] `StoreApp` convertido en raíz tipográfica Quicksand para Landing, Catálogo, ficha de producto, perfil, legales, drawers y modales.
+- [x] Bungee aplicada selectivamente a marca Animayuks, H1/H2, títulos de sección, CTAs principales y precios de gran impacto.
+- [x] Navegación global y móvil, textos, formularios, badges, filtros y botones secundarios conservan Quicksand por herencia o clase explícita.
+- [x] Escalas Bungee ajustadas por breakpoint y CTAs con padding vertical ampliado para evitar recortes y desbordamientos.
+- [x] Tarjetas de catálogo preservan dimensiones y usan Quicksand en nombres/precios compactos, manteniendo simetría y legibilidad.
+- [x] Corregido `meta viewport` de `width=1100, initial-scale=0.3` a `width=device-width, initial-scale=1.0`; los breakpoints móviles vuelven a operar correctamente.
+- [x] QA visual local en escritorio y viewport móvil real 390×844: Landing, menú móvil y Catálogo sin desbordamientos tipográficos; viewport de prueba restaurado.
+- [x] `npm run build` final OK: 1501 módulos. Solo permanecen advertencias conocidas de chunking/imports mixtos de Vite.
+
+---
+
+## Fase 61 (Post-Lanzamiento) — Tipografía Data-Driven del CMS ✅ (2026-07-28)
+
+- [x] `AdminApp` convertido en raíz Quicksand para sidebar, tablas, formularios, modales, badges, filtros y controles administrativos.
+- [x] Bungee aplicada estratégicamente a Animayuks OS, login administrativo, H1 de cada módulo, KPIs del Dashboard y CTAs principales de alta.
+- [x] Todas las tablas administrativas declaran Quicksand explícitamente; datos monoespaciados sensibles como SKU/IDs conservan `font-mono`.
+- [x] Escala Bungee ajustada por breakpoint para conservar densidad B2B y evitar desbordamientos en títulos largos.
+- [x] Dashboard, CRM, Catálogo, Inventario, Kanban y Donaciones reforzados con `min-width` y scroll horizontal controlado donde la tabla lo requiere.
+- [x] Sidebar corregido para iniciar expandido solo desde `lg`; en móvil inicia compacto y deja visible el contenido y el control de expansión.
+- [x] QA visual local en Dashboard y Catálogo de escritorio; Catálogo validado en viewport móvil real 390×844 con tabla desplazable y CTA íntegro.
+- [x] Acceso temporal de QA retirado, viewport restaurado y servidor de prueba detenido.
+- [x] `npm run build` final OK: 1501 módulos. Solo permanecen advertencias conocidas de chunking/imports mixtos de Vite.
+## Corrección post-cierre — “Mis Aportaciones Sociales” del perfil ✅ (2026-07-28)
+
+- [x] Eliminada la tarjeta maqueta hardcodeada de `$30.00` en `ProfilePage.jsx`.
+- [x] Migración `031_donations_user_association`: `donations.user_id` nullable con FK `users(id) ON DELETE SET NULL` e índice `idx_donations_user_created_at`; sin backfill inseguro por correo.
+- [x] `POST /api/donate` conserva donaciones anónimas y asocia `user_id` únicamente cuando recibe un JWT válido, derivándolo de `request.user.sub`.
+- [x] Endpoint autenticado `GET /api/profile/donations` con DTO seguro y paginación; no expone correo ni identificadores de Stripe.
+- [x] Perfil conectado con TanStack Query: carga, error, estado vacío real e historial con estados `PENDING`/`COMPLETED`/`REFUNDED`.
+- [x] Verificación HTTP + PostgreSQL: cuenta nueva → total `0`; donación autenticada `$30` → total `1` y `user_id` correcto; donación anónima `$40` usando el mismo correo → `user_id NULL` y el total del perfil permaneció en `1`. Seeds de QA eliminados.
+- [x] `npx tsc --noEmit` backend → 0 errores; `npm run build` frontend → 1501 módulos, 0 errores.
+## Integración Stripe Test — Checkout y Donaciones ✅ (2026-07-28)
+
+- [x] Backend configurado con `PAYMENTS_SIMULATED=false`, clave secreta test y secreto de listener; secretos únicamente en `.env` ignorados por Git.
+- [x] Frontend configurado con clave publicable test e instalados `@stripe/stripe-js` + `@stripe/react-stripe-js`.
+- [x] `PaymentModal.jsx`: flujo crear orden → montar `PaymentElement` → `stripe.confirmPayment` (`redirect: if_required`, compatible con 3DS); carrito se limpia solo tras aceptación de Stripe; antidoble-click en creación y confirmación.
+- [x] `DonationModal.jsx`: dejó de declarar éxito al crear el `PaymentIntent`; ahora monta `PaymentElement`, confirma con Stripe y refresca “Mis aportaciones” tras aceptación.
+- [x] `StripeAdapter`: `automatic_payment_methods` habilitado; firma HMAC del webhook preservada.
+- [x] Corregido bug latente de inventario: el webhook ya no vuelve a comparar el stock después de que checkout lo reservó atómicamente (evitaba reembolsos falsos al vender la última unidad).
+- [x] Stripe CLI v1.44.0 descargado desde el release oficial y checksum SHA-256 verificado.
+- [x] Prueba real Stripe Test: API autenticó; `PaymentIntent` creado y cancelado (`livemode=false`).
+- [x] E2E donación: `POST /api/donate` 201 → confirmación `pm_card_visa` `succeeded` → evento real `payment_intent.succeeded` firmado → webhook 200 → PostgreSQL `PENDING → COMPLETED`; seed eliminado.
+- [x] Navegador: modal creó un PaymentIntent real y montó el iframe de Stripe `PaymentElement`; eliminados campos ficticios y textos “Pago simulado”; intento QA cancelado y eliminado.
+- [ ] E2E completo de orden por navegador: bloqueado por Redis local no disponible (`ECONNREFUSED 127.0.0.1:6379`) antes de crear la orden. No se marca como probado.
+
+## Corrección post-cierre — Carrito y Wishlist unificados (2026-07-30)
+
+- [x] Eliminados los handlers mock de favoritos en tarjetas de Catálogo y Trending Top; ambos consumen el endpoint real de wishlist mediante TanStack Query.
+- [x] Toggle de wishlist compartido con actualización optimista, rollback de error, invalidación de caché y apertura del modal real de autenticación para visitantes.
+- [x] Vista de producto conectada al mismo toggle: corazón reactivo para agregar/quitar favoritos.
+- [x] Header restaurado con accesos visibles a perfil, wishlist y carrito; badges derivados de la caché de wishlist y del estado reactivo del carrito.
+- [x] `cartStore` acepta `addItem(product, variant, quantity)` y el formato histórico, calcula `itemCount`/`cartTotal` y persiste el carrito en almacenamiento local.
+- [x] `quickAdd` conserva `imageUrl`; `CartDrawer` muestra imagen real, precio, cantidad y variante.
+- [x] Feedback antidoble-click: spinner/confirmación visual durante el quick-add de las tarjetas del catálogo.
+- [x] `npm run build` OK: 1511 módulos, 0 errores.
+- [x] Navegador local: Header, navegación al Catálogo, botón de sesión y apertura de carrito renderizan y responden sin errores.
+- [ ] E2E autenticado contra wishlist y productos reales no ejecutado: el backend local devolvió un catálogo vacío durante esta sesión. No se marca como probado.
+
+## Corrección post-cierre — Auditoría funcional de Mi Perfil (2026-07-30)
+
+- [x] Historial de pedidos validado contra `GET /api/profile/orders`; estados reales del dominio mapeados a etiquetas y badges diferenciados, con carga, error, estado vacío y detalle.
+- [x] Monedero protegido contra el falso saldo `$0.00` durante carga/error; ledger y donaciones usan datos reales, importes normalizados y estados de carga/error/vacío.
+- [x] Cupones conectados al contrato real `GET/POST /api/profile/coupons`; errores de código inexistente, inválido o expirado se muestran como error.
+- [x] Wishlist conectada al backend: eliminación invalida su caché y “Al Carrito” usa `quickAdd` real con bloqueo mientras procesa.
+- [x] Notificaciones conectadas: lectura individual y masiva invalidan lista y contador; feedback de éxito/error y botón masivo deshabilitado si no hay pendientes.
+- [x] Direcciones: eliminada la inferencia falsa `CP → Nacional/Foráneo`; país, estado/región y ciudad se envían como datos explícitos. Crear, eliminar y marcar principal invalidan la caché y preservan UI ante errores.
+- [x] Métodos de pago conserva advertencia explícita de módulo demostrativo; eliminar tarjetas ficticias ya no declara un éxito inexistente. La falsa descarga exitosa de CFDI también fue sustituida por una advertencia honesta.
+- [x] QA HTTP + PostgreSQL con cuenta nueva: pedidos `0`, ledger `0`, donaciones `0`, wishlist `0`, notificaciones `0`, direcciones `0`; cupones vigentes `4`; cupón inexistente `404`.
+- [x] QA real de direcciones: crear `201` → marcar principal y verificar persistencia → eliminar `204` → lista final `0`. Usuarios de prueba eliminados de PostgreSQL.
+- [x] `npm run build` final OK: 1511 módulos, 0 errores.
+- [ ] Recorrido visual autenticado automatizado no completado: el servidor Vite no permaneció disponible para el navegador durante esta sesión. No se marca como probado.
+
+## Corrección post-cierre — Bloqueo global por desconexión (2026-07-30)
+
+- [x] `ConnectivityGate` montado antes de Storefront y CMS: ninguna aplicación, sesión o WebSocket se inicia hasta confirmar disponibilidad.
+- [x] Diagnóstico separado para navegador sin Internet y API de Animayuks apagada/no disponible.
+- [x] Overlay bloqueante Jungle Theme con explicación clara, detalle HTTP/timeout, reintento manual y recuperación automática.
+- [x] Escucha inmediata de eventos `online`/`offline`, revalidación al volver a la pestaña y sondeo de salud cada 15 segundos.
+- [x] Endpoint real `GET /api/health` verificado: `status=ok`, PostgreSQL `connected`.
+- [x] `npm run build` final OK: 1512 módulos, 0 errores.
+- [ ] Visualización empírica de los estados forzados offline/API caída no ejecutada; no se detuvo deliberadamente el backend activo del usuario.
+
+## Corrección post-cierre — Hooks variables en HeroCarousel (2026-07-30)
+
+- [x] Eliminado el retorno temprano que hacía que `HeroCarousel` ejecutara distinta cantidad de hooks antes y después de recibir banners.
+- [x] Todos los efectos se ejecutan ahora en orden estable, incluso con respuesta inicial vacía.
+- [x] Carrusel protegido para cero o un banner: no crea intervalos ni calcula módulo sobre longitud cero.
+- [x] Índice activo reajustado automáticamente si el CMS reduce la cantidad de banners.
+- [x] Preview individual protegido contra arrays vacíos y elementos `undefined`.
+- [x] `npm run build` final OK: 1512 módulos, 0 errores.
+
+## Corrección post-cierre — Navegación de documentos legales (2026-07-30)
+
+- [x] Corregido el contrato entre `Footer` y `StoreApp`: los destinos `legal:privacy`, `legal:terms`, `legal:shipping` y `legal:returns` se normalizan a la vista `legal` sin colapsar el contenido principal.
+- [x] `LegalView` recibe y sincroniza el documento solicitado aunque ya esté montado.
+- [x] Validación real en navegador: Privacidad, Términos, Envíos y Devoluciones abrieron su interfaz y título correspondientes.
+- [x] Layout legal validado con contenido principal de altura estable y consola sin errores.
+- [x] `npm run build` final OK: 1512 módulos, 0 errores.
+
+## Corrección post-cierre — Persistencia de vista después del login (2026-07-30)
+
+- [x] Eliminada la navegación forzada ejecutada por `AuthModal` después de un login exitoso.
+- [x] El éxito de autenticación ahora se limita a actualizar la sesión, limpiar la contraseña, mostrar el toast y cerrar el modal; no modifica `currentView`.
+- [x] Eliminada la prop `navigate` que había quedado sin uso en `AuthModal`.
+- [x] `npm run build` final OK: 1512 módulos, 0 errores.
+
+## Corrección post-cierre — Retorno al Catálogo después de Google OAuth (2026-07-30)
+
+- [x] `AuthModal` comunica al inicio OAuth la vista segura desde la que se abrió; Catálogo envía `returnTo=store`.
+- [x] Backend conserva el destino normalizado en una cookie HttpOnly efímera y el callback redirige a `/catalogo` en lugar de forzar la raíz.
+- [x] Protección contra open redirect: únicamente se aceptan destinos internos conocidos; una URL externa de prueba fue reducida a `/`.
+- [x] Prueba HTTP real: inicio OAuth desde Catálogo respondió `302` hacia Google y emitió `oauth_return_to=/catalogo` junto al `state` anti-CSRF.
+- [x] Prueba de callback fallido con `state` válido: redirigió a `/catalogo?auth_error=oauth_failed` y eliminó las dos cookies OAuth temporales.
+- [x] `npx tsc --noEmit` backend y `npm run build` frontend completados sin errores; frontend: 1512 módulos.
+- [ ] No se completó una selección real de cuenta Google durante esta prueba automatizada.
+
+## Corrección post-cierre — Retiro de Seguridad del perfil (2026-07-30)
+
+- [x] Eliminada la pestaña visible `Seguridad (Perfil)` de `ProfilePage`.
+- [x] Eliminado su panel de edición de nombre, correo, teléfono y gestión de acceso.
+- [x] Retiradas la mutación de actualización, solicitudes OTP, estado local, dependencias y props exclusivas de esa interfaz.
+- [x] Búsqueda residual confirmada: no quedan ids, paneles, mutaciones ni textos funcionales de la pestaña.
+- [x] `npm run build` final OK: 1512 módulos, 0 errores.
+
+## Corrección post-cierre — Selectores geográficos de direcciones (2026-07-30)
+
+- [x] Sustituidos los campos libres de país, estado/región y ciudad por selectores dependientes País → Región → Ciudad.
+- [x] Catálogo servido desde backend con fuente ODbL actualizada de Countries States Cities Database, descubrimiento del release disponible y caché de 24 horas.
+- [x] El navegador recibe únicamente la lista requerida; no descarga el dataset mundial de ciudades.
+- [x] Estados de carga, error y bloqueo del guardado implementados mientras el catálogo no está disponible.
+- [x] Validación de dominio añadida a creación y actualización: combinaciones geográficas inventadas no pueden persistirse aunque se eluda el formulario.
+- [x] Prueba HTTP real: 250 países, 32 regiones para México y 200 ciudades para Yucatán; Mérida presente.
+- [x] Prueba de validación: `MX / Yucatán / Mérida` aceptada y una ciudad inventada rechazada.
+- [x] `npx tsc --noEmit` backend y `npm run build` frontend completados sin errores; frontend: 1512 módulos.
+- [ ] Recorrido visual autenticado del modal no completado: el navegador automatizado no tenía una sesión de usuario.
+
+## Corrección post-cierre — Resiliencia y ruido de Redis (2026-07-30)
+
+- [x] Inventariadas y protegidas las conexiones de API, Pub/Sub, productores BullMQ y workers; todas registran su evento `error`.
+- [x] Logging Redis centralizado por transición: la caída se informa una vez y los reintentos se agrupan, sin `[ioredis] Unhandled error event`.
+- [x] Productores HTTP configurados para fallar rápido (`enableOfflineQueue=false`, `maxRetriesPerRequest=1`, `skipWaitingForReady`) y workers separados con espera persistente.
+- [x] URL local normalizada a `127.0.0.1` y parser preserva usuario ACL, contraseña, DB y TLS para entornos administrados.
+- [x] Subscriber WebSocket dedicado y cierre limpio incorporados al ciclo de vida de la API.
+- [x] Infraestructura local reproducible añadida en `compose.redis.yml`, con persistencia, healthcheck y política `noeviction`.
+- [x] Prueba con Redis apagado durante 22 segundos: una alerta consolidada, cero eventos no manejados y cero errores fatales.
+- [x] Productor BullMQ probado con Redis apagado: rechazo controlado en 8 ms, sin espera indefinida.
+- [x] `npm run typecheck` completado con 0 errores; `/api/health` continúa respondiendo `status=ok`, PostgreSQL `connected` y Redis `reconnecting`.
+- [x] Recuperación conectada verificada el 2026-07-31 con Memurai Developer aislado: `PING=PONG` y `/api/health` cambió de `reconnecting` a `connected` sin reiniciar la API.
+
+## Corrección post-cierre — Stripe One-Time Checkout sin bóveda (2026-07-31)
+
+- [x] Eliminada la pestaña y toda la interfaz demostrativa de Métodos de Pago en `ProfilePage` y `ProfileDrawer`.
+- [x] Búsqueda residual frontend/backend completada: no quedan rutas, estados, endpoints ni casos de uso para guardar/listar/eliminar tarjetas.
+- [x] Esquema PostgreSQL verificado: cero columnas `payment_method`, `stripe_customer`, `last4`, datos de tarjeta o equivalentes.
+- [x] `PaymentForm` extraído y conectado a `Elements` + `PaymentElement`, con bloqueo antidoble-click, validación de completitud y errores claros para fondos insuficientes, expiración, CVC, código postal y rechazo bancario.
+- [x] `StripeAdapter` confirmado como flujo one-time: no envía `customer`, `SetupIntent` ni `setup_future_usage`.
+- [x] Redis-compatible local habilitado para conservar locks e idempotencia reales; `/api/health` verificó Redis `connected`.
+- [x] E2E API real: carrito de tres unidades → orden `PAYMENT_PENDING` → Stripe Test `succeeded` por `$274.94 MXN`.
+- [x] Stripe inspeccionado tras el cobro: `setup_future_usage=null`, `customer=null` y `payment_method.customer=null`.
+- [x] Webhook `payment_intent.succeeded` firmado respondió HTTP 200 y PostgreSQL persistió la orden como `PAID`.
+- [x] `npm run typecheck` backend y `npm run build` frontend completados sin errores.
+- [ ] Recorrido visual automatizado completo no marcado: la superficie de navegador bloqueó por política la recarga de `127.0.0.1`; no se sustituyó por automatización oculta.
+
+## Corrección post-cierre — Refactorización responsiva Mobile-First (2026-07-31)
+
+- [x] Viewport móvil y prevención global de desbordamiento horizontal configurados en la raíz de la aplicación.
+- [x] Header, menú móvil, drawers y controles críticos adaptados con objetivos táctiles mínimos de 44 px.
+- [x] Landing, Hero, Trending Top, catálogo, producto, Perfil, legales y flujos modales refactorizados con escalado Mobile-First.
+- [x] Layout y vistas principales del CMS adaptados con sidebar off-canvas, grids progresivos y scroll local para tablas y Kanban.
+- [x] QA visual ejecutado en 320 × 568, 390 × 844, 768 × 1024, 1024 × 768 y 1280 × 800.
+- [x] Auditoría final a 320 px confirmó cero controles interactivos visibles menores a 44 px y cero errores de consola.
+- [x] `npm run build` frontend completado con 1,514 módulos transformados y cero errores.
+- [x] Controles originales de acceso y carrito restaurados en su ubicación del catálogo y verificados en móvil y escritorio.

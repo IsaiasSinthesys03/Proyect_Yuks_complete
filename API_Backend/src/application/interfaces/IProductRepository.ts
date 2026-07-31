@@ -73,6 +73,14 @@ export interface IProductRepository {
   } | null>;
 
   /**
+   * Obtiene múltiples variantes por sus IDs.
+   * Útil para validar el stock del carrito en bloque.
+   *
+   * @param variantIds Lista de UUIDs de las variantes a buscar.
+   */
+  findVariantsByIds(variantIds: string[]): Promise<ProductVariant[]>;
+
+  /**
    * Decrementa el stock de una variante de forma atómica.
    *
    * La implementación DEBE usar una operación condicional SQL

@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useUiStore } from '../store/uiStore';
 
 export const useHeaderNav = () => {
     const [scrolled, setScrolled] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
+    const searchQuery = useUiStore((state) => state.globalSearchQuery);
+    const setSearchQuery = useUiStore((state) => state.setGlobalSearchQuery);
     const [isCommandOpen, setIsCommandOpen] = useState(false);
 
     // [ENTERPRISE] Omnibox Predictivo: se muestra a partir de 3 caracteres

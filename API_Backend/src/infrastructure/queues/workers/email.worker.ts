@@ -1,5 +1,5 @@
 import { Worker, Job } from 'bullmq';
-import { redisConnectionOptions } from '../../cache/redis-client';
+import { observeRedisEmitter, redisWorkerConnectionOptions } from '../../cache/redis-client';
 import { EMAIL_QUEUE_NAME } from '../email-queue';
 import { ResendEmailService } from '../../services/email/ResendEmailService';
 import dotenv from 'dotenv';
@@ -90,10 +90,12 @@ export const emailWorker = new Worker(
     }
   },
   {
-    connection: redisConnectionOptions,
+    connection: redisWorkerConnectionOptions,
     concurrency: 5,
   }
 );
+
+observeRedisEmitter(emailWorker, 'worker:email');
 
 emailWorker.on('failed', (job, error) => {
   if (!job) return;

@@ -1,7 +1,11 @@
 import { Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
 import dotenv from 'dotenv';
-import { redisConnectionOptions } from '../../cache/redis-client';
+import {
+  observeRedisClient,
+  observeRedisEmitter,
+  redisWorkerConnectionOptions,
+} from '../../cache/redis-client';
 import { RECONCILIATION_QUEUE_NAME } from '../reconciliation-queue';
 import { OrderRepository } from '../../database/repositories/OrderRepository';
 import { ProductRepository } from '../../database/repositories/ProductRepository';
@@ -26,9 +30,12 @@ const rewardCodeRepository = new RewardCodeRepository();
 
 // Cliente Redis independiente para invalidar la caché de top-products (REQ-BE-10).
 // Se usa una instancia separada de la de BullMQ para no compartir el pool de conexiones.
-const redisWorker = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null,
-});
+const redisWorker = observeRedisClient(
+  new IORedis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', {
+    maxRetriesPerRequest: null,
+  }),
+  'worker:reconciliation-cache'
+);
 
 interface ReconcileCheckoutJobData {
   orderId: string;
@@ -137,10 +144,12 @@ export const paymentReconciliationWorker = new Worker<ReconcileCheckoutJobData>(
     console.log(`✅ [Reconciliation Worker] Orden ${job.data.orderId} reconciliada exitosamente.`);
   },
   {
-    connection: redisConnectionOptions,
+    connection: redisWorkerConnectionOptions,
     concurrency: 3,
   }
 );
+
+observeRedisEmitter(paymentReconciliationWorker, 'worker:reconciliation');
 
 /**
  * Q4 (DLQ real): BullMQ emite 'failed' en CADA intento fallido, no solo en

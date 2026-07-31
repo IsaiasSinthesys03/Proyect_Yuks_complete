@@ -10,12 +10,51 @@ interface Banner {
     accent: string;
     char: string;
     image?: string;
+    buttonText?: string;
+    linkUrl?: string;
     videoClass?: string;
 }
+export const DEFAULT_BANNERS: Banner[] = [];
 
-export const HeroCarousel: React.FC = () => {
-    const [activeSlide, setActiveSlide] = useState(0);
+interface HeroCarouselProps {
+    initialSlide?: number;
+    isSinglePreview?: boolean;
+    previewBanners?: Banner[];
+}
+
+export const HeroCarousel: React.FC<HeroCarouselProps> = ({ initialSlide = 0, isSinglePreview = false, previewBanners }) => {
+    const [activeSlide, setActiveSlide] = useState(isSinglePreview ? 0 : initialSlide);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+    // [Fase 39] Banners dirigidos por la BD (REQ-FE-01). El modelo del backend
+    // (title/imageUrl/linkUrl) es más simple que el diseño del prototipo
+    // (video/accent/desc): esos campos usan defaults del prototipo. Si NO hay
+    // banners activos en el CMS, se conserva el diseño por defecto intacto.
+    const { data: apiBanners } = useBanners();
+    const ACCENTS = ["#ffce07", "#ec1676", "#03bbd3"];
+    
+    let activeApiBanners = apiBanners || [];
+    let banners: Banner[] = [];
+    
+    if (previewBanners) {
+        banners = previewBanners;
+    } else {
+        banners = activeApiBanners.map((b: any, i: number) => ({
+            tag: b.tag || b.title,
+            title: b.title,
+            desc: b.description || "Consigue Skins exclusivas, descuentos reales y envíos gratis al vincular tu progreso del videojuego con nuestra tienda oficial.",
+            video: b.videoUrl || "/assets/mp4/VID_Mario.mp4",
+            accent: b.accentColor || ACCENTS[i % ACCENTS.length],
+            char: b.title,
+            image: b.imageUrl || undefined,
+            buttonText: b.buttonText || undefined,
+            linkUrl: b.linkUrl || "https://play.google.com",
+            videoClass: "absolute inset-0 w-full h-full object-cover pointer-events-none opacity-85 mix-blend-normal",
+        }));
+    }
+
+    const previewBanner = banners[initialSlide] || banners[0];
+    const bannersToRender = isSinglePreview ? (previewBanner ? [previewBanner] : []) : banners;
 
     const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
         const rect = e.currentTarget.getBoundingClientRect();
@@ -25,58 +64,25 @@ export const HeroCarousel: React.FC = () => {
         });
     };
 
-    const DEFAULT_BANNERS: Banner[] = [
-        {
-            tag: "Lanzamiento Oficial v2.0",
-            title: "Viste tu Leyenda. Gana Jugando.",
-            desc: "Consigue Skins exclusivas, descuentos reales y envíos gratis al vincular tu progreso del videojuego con nuestra tienda oficial.",
-            video: "/assets/mp4/VID_Mario.mp4",
-            accent: "#ffce07", // Amarillo/Dorado
-            char: "Mila - Cazadora Veloz",
-            image: "/assets/imgWeb/personajes_SVG/milapose.png",
-            videoClass: "absolute inset-0 w-full h-full object-cover pointer-events-none opacity-85 mix-blend-normal"
-        },
-        {
-            tag: "Colección Mística",
-            title: "Ixchel: Sabiduría. En cada Fibra.",
-            desc: "Explora la nueva línea de ropa inspirada en la diosa Ixchel. Prendas premium que desbloquean cosméticos legendarios en el campo de batalla.",
-            video: "https://www.w3schools.com/html/mov_bbb.mp4",
-            accent: "#ec1676", // Magenta
-            char: "Ixchel - La Tejedora",
-            videoClass: "absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-overlay pointer-events-none"
-        },
-        {
-            tag: "Torneo Estacional",
-            title: "Kukul te desafía. Al Cenote.",
-            desc: "Inscríbete al torneo relámpago de esta semana. Premios en efectivo, UUIDs únicos y el rango 'Jaguar' te esperan.",
-            video: "https://www.w3schools.com/html/movie.mp4",
-            accent: "#03bbd3", // Cian
-            char: "Kukul - El Místico",
-            videoClass: "absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-overlay pointer-events-none"
+    React.useEffect(() => {
+        if (bannersToRender.length === 0) {
+            if (activeSlide !== 0) setActiveSlide(0);
+            return;
         }
-    ];
+        if (activeSlide >= bannersToRender.length) setActiveSlide(0);
+    }, [activeSlide, bannersToRender.length]);
 
-    // [Fase 39] Banners dirigidos por la BD (REQ-FE-01). El modelo del backend
-    // (title/imageUrl/linkUrl) es más simple que el diseño del prototipo
-    // (video/accent/desc): esos campos usan defaults del prototipo. Si NO hay
-    // banners activos en el CMS, se conserva el diseño por defecto intacto.
-    const { data: apiBanners } = useBanners();
-    const ACCENTS = ["#ffce07", "#ec1676", "#03bbd3"];
-    const banners: Banner[] = (apiBanners && apiBanners.length)
-        ? apiBanners.map((b: any, i: number) => ({
-            tag: b.title,
-            title: b.title,
-            desc: '',
-            video: DEFAULT_BANNERS[i % DEFAULT_BANNERS.length].video,
-            accent: ACCENTS[i % ACCENTS.length],
-            char: b.title,
-            image: b.imageUrl || undefined,
-            videoClass: DEFAULT_BANNERS[i % DEFAULT_BANNERS.length].videoClass,
-        }))
-        : DEFAULT_BANNERS;
+    React.useEffect(() => {
+        if (isSinglePreview || bannersToRender.length <= 1) return;
+        const interval = setInterval(() => {
+            setActiveSlide(prev => (prev + 1) % bannersToRender.length);
+        }, 8000);
+        return () => clearInterval(interval);
+    }, [isSinglePreview, bannersToRender.length]);
 
-    const prevSlide = () => setActiveSlide(prev => (prev === 0 ? banners.length - 1 : prev - 1));
-    const nextSlide = () => setActiveSlide(prev => (prev === banners.length - 1 ? 0 : prev + 1));
+    if (bannersToRender.length === 0) {
+        return null;
+    }
 
     const currentSlide = banners[activeSlide] || banners[0];
     const gemColors = {
@@ -193,44 +199,86 @@ export const HeroCarousel: React.FC = () => {
         );
     };
 
+    const prevSlide = () => setActiveSlide(prev => (prev === 0 ? banners.length - 1 : prev - 1));
+    const nextSlide = () => setActiveSlide(prev => (prev === banners.length - 1 ? 0 : prev + 1));
+
     return (
         <section 
             onMouseMove={handleMouseMove}
-            className="relative h-[85vh] w-full overflow-hidden z-10 bg-slate-950"
+            className="relative mt-2 flex min-h-[280px] h-[45vh] sm:min-h-[350px] max-h-[720px] w-full items-center justify-center overflow-hidden sm:mt-4 md:h-[65vh] md:min-h-[520px]"
             style={{
                 '--mouse-x': `${mousePos.x}px`,
                 '--mouse-y': `${mousePos.y}px`
             } as React.CSSProperties}
         >
-            <div 
-                className="flex h-full w-full transition-transform duration-1000 ease-in-out" 
-                style={{ transform: `translateX(-${activeSlide * 100}%)` }}
-            >
-                {banners.map((slide, idx) => (
-                    <div key={idx} className="min-w-full h-full relative flex items-center">
+            <div className="relative w-full h-full flex items-center justify-center">
+                {bannersToRender.map((slide, idx) => {
+                    let position = 2; // 0: active, -1: prev, 1: next, 2: hidden
+                    if (idx === activeSlide) position = 0;
+                    else if (idx === activeSlide - 1 || (activeSlide === 0 && idx === bannersToRender.length - 1)) position = -1;
+                    else if (idx === activeSlide + 1 || (activeSlide === bannersToRender.length - 1 && idx === 0)) position = 1;
+                    
+                    const isVisible = position === 0 || position === -1 || position === 1;
+
+                    return (
+                        <div 
+                            key={idx} 
+                            className={`absolute w-[calc(100%-1rem)] sm:w-[90%] md:w-[75%] max-w-[1100px] h-full flex items-center transition-all duration-700 ease-out origin-center rounded-2xl sm:rounded-[2.5rem] shadow-[0_15px_40px_rgba(0,0,0,0.6)] overflow-hidden bg-slate-950 ${
+                                position === 0 ? 'z-30 opacity-100 cursor-auto' : 'z-20 opacity-40 cursor-pointer hover:opacity-60'
+                            } ${!isVisible ? 'opacity-0 pointer-events-none' : ''}`}
+                            style={{
+                                transform: position === 0 
+                                    ? 'translateX(0) scale(1)' 
+                                    : position === -1
+                                    ? 'translateX(-28%) scale(0.85)'
+                                    : 'translateX(28%) scale(0.85)',
+                                // Critical WebKit fix for border-radius + opacity + transform clipping bug
+                                WebkitMaskImage: '-webkit-radial-gradient(white, black)'
+                            }}
+                            onClick={() => {
+                                if (position === -1) prevSlide();
+                                if (position === 1) nextSlide();
+                            }}
+                        >
                         
-                        <div className="absolute inset-0 z-0 bg-slate-950 overflow-hidden">
-                            <video 
-                                src={slide.video} 
-                                autoPlay 
-                                loop 
-                                muted 
-                                playsInline 
-                                className={slide.videoClass || "absolute inset-0 w-full h-full object-cover mix-blend-screen opacity-60"} 
-                            />
+                        <div className="absolute inset-0 z-0 bg-slate-950 overflow-hidden rounded-[2.5rem]" style={{ WebkitMaskImage: '-webkit-radial-gradient(white, black)' }}>
+                            {slide.video && /\.(mp4|webm|ogg)($|\?)/i.test(slide.video) ? (
+                                <video 
+                                    ref={(el) => {
+                                        if (el) {
+                                            if (position === 0) {
+                                                el.play().catch(() => {});
+                                            } else {
+                                                el.pause();
+                                            }
+                                        }
+                                    }}
+                                    src={slide.video} 
+                                    loop 
+                                    muted 
+                                    playsInline 
+                                    className={`${slide.videoClass || "absolute inset-0 w-full h-full object-cover mix-blend-screen opacity-60"} rounded-[2.5rem]`} 
+                                />
+                            ) : slide.video ? (
+                                <img 
+                                    src={slide.video} 
+                                    className={`${slide.videoClass || "absolute inset-0 w-full h-full object-cover opacity-85 mix-blend-normal"} rounded-[2.5rem]`} 
+                                    alt="Fondo"
+                                />
+                            ) : null}
                             {/* Gradiente para asegurar contraste en la Capa 3 */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/70 to-transparent mix-blend-multiply"></div>
+                            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/70 to-transparent mix-blend-multiply rounded-[2.5rem]"></div>
                             {/* Gradiente vertical inferior para fundir el video en negro en la base del slide */}
-                            <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent pointer-events-none z-10"></div>
+                            <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent pointer-events-none z-10 rounded-b-[2.5rem]"></div>
                         </div>
 
                         {/* ========================================================= */}
                         {/* CAPA 2 (Interacción): SVG Pop-out Personaje               */}
                         {/* ========================================================= */}
-                        <div className="hidden md:flex absolute right-[2%] bottom-0 h-[115%] w-[50%] lg:w-[600px] items-end justify-end z-[30] pointer-events-none transform translate-y-[15%]">
+                        <div className="flex absolute right-[-5%] md:right-[-2%] bottom-0 h-[80%] md:h-[105%] w-[150px] min-[390px]:w-[170px] sm:w-[250px] md:w-[380px] 2xl:w-[440px] items-end justify-end z-[30] pointer-events-none transform translate-y-[2%] md:translate-y-[12%]">
                             {/* Halo de luz tras el personaje para darle profundidad */}
                             <div 
-                                className="absolute bottom-32 right-20 w-[400px] h-[400px] rounded-full blur-[100px] z-0 opacity-50 mix-blend-screen" 
+                                className="absolute bottom-16 md:bottom-32 right-10 md:right-20 w-[150px] md:w-[400px] h-[150px] md:h-[400px] rounded-full blur-[40px] md:blur-[100px] z-0 opacity-50 mix-blend-screen" 
                                 style={{ backgroundColor: slide.accent }}
                             ></div>
                             
@@ -238,10 +286,10 @@ export const HeroCarousel: React.FC = () => {
                                 <img
                                     src={slide.image}
                                     alt={slide.char}
-                                    className="relative z-10 w-full h-full object-contain object-bottom drop-shadow-[0_25px_50px_rgba(0,0,0,0.8)] pointer-events-auto hover:scale-110 transition-transform duration-[1s] ease-out origin-bottom"
+                                    className="relative z-10 w-full h-full object-contain object-bottom drop-shadow-[0_15px_30px_rgba(0,0,0,0.8)] pointer-events-auto hover:scale-110 transition-transform duration-[1s] ease-out origin-bottom"
                                 />
                             ) : (
-                                <div className="relative z-10 w-[350px] h-[450px] mb-20 mr-12 border-2 border-dashed border-white/20 rounded-3xl flex flex-col items-center justify-center text-white/50 backdrop-blur-md shadow-2xl overflow-hidden group pointer-events-auto bg-black/20">
+                                <div className="relative z-10 w-[350px] h-[450px] mb-20 mr-12 border-2 border-dashed border-white/20 rounded-3xl flex flex-col items-center justify-center text-white/50 backdrop-blur-md shadow-2xl overflow-hidden group pointer-events-auto bg-black/20 hidden md:flex">
                                     <ImageIcon className="w-12 h-12 mb-4 text-white/30 z-20" />
                                     <p className="font-bold text-white text-xs bg-black/60 px-4 py-1.5 rounded-full border border-white/10 shadow-lg">{slide.char}</p>
                                     <p className="text-[10px] mt-2 text-white/40 uppercase tracking-widest">Placeholder Capa 2</p>
@@ -252,18 +300,14 @@ export const HeroCarousel: React.FC = () => {
                         {/* ========================================================= */}
                         {/* CAPA 3 (Contenido/CTA): UI Accesible y Botón Único        */}
                         {/* ========================================================= */}
-                        <div className="container mx-auto px-6 lg:px-12 relative z-20 flex items-center h-full pt-16 pointer-events-none">
-                            <div className={`max-w-2xl p-8 rounded-[2.5rem] pointer-events-auto transition-all duration-500 ${
-                                idx === 0 
-                                    ? 'bg-transparent border border-transparent shadow-none backdrop-blur-none' 
-                                    : 'bg-slate-900/40 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/50'
-                            }`}>
+                        <div className="container mx-auto px-4 sm:px-8 lg:px-16 relative z-20 flex items-center h-full pt-4 sm:pt-10 pointer-events-none">
+                            <div className="max-w-[70%] sm:max-w-2xl xl:max-w-[58%] p-2 sm:p-6 md:p-8 rounded-2xl sm:rounded-[2.5rem] pointer-events-auto transition-all duration-500 bg-transparent border border-transparent shadow-none backdrop-blur-none">
                                 
-                                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/40 backdrop-blur-md text-white font-bold text-xs border border-white/10 mb-6 shadow-md">
-                                    <div className="w-2 h-2 rounded-full animate-pulse shadow-[0_0_10px_currentColor]" style={{ backgroundColor: slide.accent, color: slide.accent }}></div> {slide.tag}
+                                <span className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-full bg-black/40 backdrop-blur-md text-white font-bold text-[9px] sm:text-xs border border-white/10 mb-2 sm:mb-4 shadow-md">
+                                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full animate-pulse shadow-[0_0_10px_currentColor]" style={{ backgroundColor: slide.accent, color: slide.accent }}></div> {slide.tag}
                                 </span>
                                 
-                                <h1 className="text-5xl lg:text-7xl font-black text-white leading-[1.1] mb-6 drop-shadow-xl tracking-tight">
+                                <h1 className="font-bungee text-lg min-[390px]:text-xl sm:text-4xl lg:text-5xl 2xl:text-6xl text-white leading-[1.1] mb-2 sm:mb-5 drop-shadow-xl tracking-tight break-words">
                                     {slide.title.split('. ')[0]}. <br />
                                     <span style={{ color: slide.accent }} className="drop-shadow-lg">
                                         {slide.title.split('. ')[1]}
@@ -271,303 +315,72 @@ export const HeroCarousel: React.FC = () => {
                                 </h1>
                                 
                                 {/* Contraste WCAG AA asegurado por el fondo backdrop-blur-xl y bg-slate-900/40 */}
-                                <p className="text-lg text-slate-200 mb-10 max-w-lg leading-relaxed font-medium drop-shadow-md">
+                                <p className="text-[10px] sm:text-base text-slate-200 mb-3 sm:mb-8 leading-snug sm:leading-relaxed font-medium drop-shadow-md pr-4 sm:pr-0">
                                     {slide.desc}
                                 </p>
 
-                                <div className="flex items-center gap-4">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 relative z-20">
                                     {/* Botón Único apuntando a Google Play [REQ-FE-01] */}
                                     <a 
-                                        href="https://play.google.com" 
+                                        href={slide.linkUrl || "https://play.google.com"} 
                                         target="_blank" 
-                                        rel="noopener noreferrer" 
-                                        className="group relative overflow-hidden bg-white hover:bg-slate-50 text-slate-900 px-8 py-4 rounded-2xl font-black text-lg transition-all hover:scale-105 shadow-[0_10px_30px_rgba(255,255,255,0.15)] hover:shadow-[0_15px_40px_rgba(255,255,255,0.25)] flex items-center gap-3 border border-transparent"
-                                    >
-                                        <div className="absolute inset-0 w-full h-full opacity-10 bg-gradient-to-r from-transparent via-black to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
+                                        rel="noopener noreferrer"
+                                        className="w-fit px-3 sm:px-8 py-2 sm:py-4 rounded-xl sm:rounded-2xl font-bold text-[10px] sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 transition-all hover:scale-[1.02] active:scale-95 group relative overflow-hidden text-slate-900 bg-white shadow-lg shadow-white/20 hover:shadow-white/40 pointer-events-auto"
+                                        aria-label={slide.buttonText || 'Descargar en Google Play'}
+                                    >  <div className="absolute inset-0 w-full h-full opacity-10 bg-gradient-to-r from-transparent via-black to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
                                         <Play className="w-6 h-6 transition-transform group-hover:scale-110" style={{ color: slide.accent }} /> 
-                                        <span>Descargar en Google Play</span>
+                                        <span>{slide.buttonText || 'Descargar en Google Play'}</span>
                                     </a>
                                 </div>
                             </div>
                         </div>
 
-                    </div>
-                ))}
-            </div>
-
-            {/* Controles del Carousel */}
-            <button 
-                onClick={prevSlide} 
-                className="absolute left-4 lg:left-8 top-1/2 -translate-y-1/2 z-[40] bg-black/40 hover:bg-black/60 border border-white/20 backdrop-blur-md p-3.5 rounded-full text-white transition-all hover:scale-110 shadow-2xl hidden md:flex items-center justify-center"
-            >
-                <ChevronLeft className="w-6 h-6" />
-            </button>
-            <button 
-                onClick={nextSlide} 
-                className="absolute right-4 lg:right-8 top-1/2 -translate-y-1/2 z-[40] bg-black/40 hover:bg-black/60 border border-white/20 backdrop-blur-md p-3.5 rounded-full text-white transition-all hover:scale-110 shadow-2xl hidden md:flex items-center justify-center"
-            >
-                <ChevronRight className="w-6 h-6" />
-            </button>
-
-            {/* ========================================================= */}
-            {/* MARCO DORADO INTERACTIVO Y ANIMADO PRO-MAX (Game UI Style) */}
-            {/* ========================================================= */}
-            
-            {/* Estilos CSS Inline para Animaciones Reutilizables */}
-            <style dangerouslySetInnerHTML={{ __html: `
-                @keyframes conduit-flow-right-${activeSlide} {
-                    0% { stroke-dashoffset: 1000; }
-                    100% { stroke-dashoffset: 0; }
-                }
-                @keyframes conduit-flow-left-${activeSlide} {
-                    0% { stroke-dashoffset: -1000; }
-                    100% { stroke-dashoffset: 0; }
-                }
-                @keyframes gem-pulse {
-                    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px var(--gem-glow)) brightness(1); }
-                    50% { transform: scale(1.08); filter: drop-shadow(0 0 12px var(--gem-glow)) brightness(1.25); }
-                }
-                @keyframes sparkle-rotate {
-                    0% { transform: rotate(0deg) scale(0.7); opacity: 0.3; }
-                    50% { transform: rotate(180deg) scale(1.1); opacity: 0.9; }
-                    100% { transform: rotate(360deg) scale(0.7); opacity: 0.3; }
-                }
-                @keyframes particle-drift {
-                    0% { transform: translateY(0) translateX(0); opacity: 0; }
-                    10% { opacity: 0.8; }
-                    90% { opacity: 0.8; }
-                    100% { transform: translateY(-130px) translateX(var(--drift-x)); opacity: 0; }
-                }
-                @keyframes border-flash-${activeSlide} {
-                    0% { opacity: 0.85; filter: brightness(1.5); }
-                    100% { opacity: 0; filter: brightness(1); }
-                }
-            `}} />
-
-            {/* Flash de transición al cambiar de slide */}
-            <div 
-                key={`flash-${activeSlide}`} 
-                className="absolute inset-0 pointer-events-none z-[48] mix-blend-screen"
-                style={{
-                    boxShadow: `inset 0 0 50px ${gemColors.glow}`,
-                    border: `4px solid ${gemColors.glow}`,
-                    animation: `border-flash-${activeSlide} 0.8s ease-out 1 forwards`
-                }}
-            />
-
-            {/* Contenedor Base del Marco con Borde de Metal Oscuro Grueso */}
-            <div className="absolute inset-0 pointer-events-none z-[45] border-[8px] border-[#251206] shadow-[inset_0_0_20px_rgba(0,0,0,0.8)]">
-                
-                {/* Reflejo Metálico Interactivo (Cursor Follow) */}
-                <div 
-                    className="absolute inset-0 pointer-events-none mix-blend-color-dodge opacity-80"
-                    style={{
-                        background: `radial-gradient(circle 240px at var(--mouse-x) var(--mouse-y), ${gemColors.light}25 0%, transparent 70%)`
-                    }}
-                />
-
-                {/* Bisel de Madera de Fondo del Marco */}
-                <div 
-                    className="absolute inset-[2px] border-[5px] border-solid" 
-                    style={{
-                        borderImage: 'linear-gradient(135deg, #e6c59e 0%, #b88d5e 50%, #3a2212 100%) 5',
-                        boxShadow: 'inset 0 0 10px rgba(0,0,0,0.8)'
-                    }}
-                />
-
-                {/* Doble Conducto de Energía Mágica Animada */}
-                <div className="absolute inset-[7px] pointer-events-none">
-                    <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-                        <rect
-                            x="0"
-                            y="0"
-                            width="100%"
-                            height="100%"
-                            fill="none"
-                            stroke={currentSlide.accent}
-                            strokeWidth="2"
-                            vectorEffect="non-scaling-stroke"
-                            strokeDasharray="140 380"
-                            style={{
-                                filter: `drop-shadow(0 0 5px ${currentSlide.accent})`,
-                                animation: `conduit-flow-right-${activeSlide} 12s linear infinite`
-                            }}
-                        />
-                        <rect
-                            x="0"
-                            y="0"
-                            width="100%"
-                            height="100%"
-                            fill="none"
-                            stroke={currentSlide.accent}
-                            strokeWidth="1.5"
-                            vectorEffect="non-scaling-stroke"
-                            strokeDasharray="90 320"
-                            style={{
-                                filter: `drop-shadow(0 0 4px ${currentSlide.accent})`,
-                                animation: `conduit-flow-left-${activeSlide} 15s linear infinite`
-                            }}
-                        />
-                    </svg>
-                </div>
-
-                {/* --- Remaches de Musgo Luminoso 3D --- */}
-                {/* Remaches Superior */}
-                <div className="absolute left-[20%] top-[4px] -translate-y-1/2 w-4.5 h-4.5 rounded-full bg-[#150800] border border-[#251206] flex items-center justify-center z-50">
-                    <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-[#2e4705] via-[#658d1b] to-[#96c93e] shadow-sm flex items-center justify-center"><div className="w-0.5 h-0.5 rounded-full bg-white/70 -translate-x-[0.5px] -translate-y-[0.5px]"/></div>
-                </div>
-                <div className="absolute left-[80%] top-[4px] -translate-y-1/2 w-4.5 h-4.5 rounded-full bg-[#150800] border border-[#251206] flex items-center justify-center z-50">
-                    <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-[#2e4705] via-[#658d1b] to-[#96c93e] shadow-sm flex items-center justify-center"><div className="w-0.5 h-0.5 rounded-full bg-white/70 -translate-x-[0.5px] -translate-y-[0.5px]"/></div>
-                </div>
-
-                {/* Remaches Inferior */}
-                <div className="absolute left-[20%] bottom-[4px] translate-y-1/2 w-4.5 h-4.5 rounded-full bg-[#150800] border border-[#251206] flex items-center justify-center z-50">
-                    <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-[#2e4705] via-[#658d1b] to-[#96c93e] shadow-sm flex items-center justify-center"><div className="w-0.5 h-0.5 rounded-full bg-white/70 -translate-x-[0.5px] -translate-y-[0.5px]"/></div>
-                </div>
-                <div className="absolute left-[80%] bottom-[4px] translate-y-1/2 w-4.5 h-4.5 rounded-full bg-[#150800] border border-[#251206] flex items-center justify-center z-50">
-                    <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-[#2e4705] via-[#658d1b] to-[#96c93e] shadow-sm flex items-center justify-center"><div className="w-0.5 h-0.5 rounded-full bg-white/70 -translate-x-[0.5px] -translate-y-[0.5px]"/></div>
-                </div>
-
-                {/* Remaches Izquierda */}
-                <div className="absolute top-[25%] left-[4px] -translate-x-1/2 w-4.5 h-4.5 rounded-full bg-[#150800] border border-[#251206] flex items-center justify-center z-50">
-                    <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-[#2e4705] via-[#658d1b] to-[#96c93e] shadow-sm flex items-center justify-center"><div className="w-0.5 h-0.5 rounded-full bg-white/70 -translate-x-[0.5px] -translate-y-[0.5px]"/></div>
-                </div>
-                <div className="absolute top-[75%] left-[4px] -translate-x-1/2 w-4.5 h-4.5 rounded-full bg-[#150800] border border-[#251206] flex items-center justify-center z-50">
-                    <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-[#2e4705] via-[#658d1b] to-[#96c93e] shadow-sm flex items-center justify-center"><div className="w-0.5 h-0.5 rounded-full bg-white/70 -translate-x-[0.5px] -translate-y-[0.5px]"/></div>
-                </div>
-
-                {/* Remaches Derecha */}
-                <div className="absolute top-[25%] right-[4px] translate-x-1/2 w-4.5 h-4.5 rounded-full bg-[#150800] border border-[#251206] flex items-center justify-center z-50">
-                    <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-[#2e4705] via-[#658d1b] to-[#96c93e] shadow-sm flex items-center justify-center"><div className="w-0.5 h-0.5 rounded-full bg-white/70 -translate-x-[0.5px] -translate-y-[0.5px]"/></div>
-                </div>
-                <div className="absolute top-[75%] right-[4px] translate-x-1/2 w-4.5 h-4.5 rounded-full bg-[#150800] border border-[#251206] flex items-center justify-center z-50">
-                    <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-[#2e4705] via-[#658d1b] to-[#96c93e] shadow-sm flex items-center justify-center"><div className="w-0.5 h-0.5 rounded-full bg-white/70 -translate-x-[0.5px] -translate-y-[0.5px]"/></div>
-                </div>
-
-                {/* --- Placas de Anclaje Centrales (Crestas) --- */}
-                {/* Placa Superior */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-[10px] pointer-events-none z-50 w-40 h-10 flex items-center justify-center">
-                    <svg width="160" height="40" viewBox="0 0 160 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <defs>
-                            <linearGradient id={`gold-p-base-${activeSlide}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" stopColor="#d4ad82" />
-                                <stop offset="50%" stopColor="#b88d5e" />
-                                <stop offset="100%" stopColor="#8c6239" />
-                            </linearGradient>
-                            <linearGradient id={`gold-p-light-${activeSlide}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor="#e6c59e" />
-                                <stop offset="50%" stopColor="#d4ad82" />
-                                <stop offset="100%" stopColor="#b88d5e" />
-                            </linearGradient>
-                        </defs>
-                        <path d="M 12,4 L 148,4 L 160,18 L 148,32 L 80,40 L 12,32 L 0,18 Z" fill="#251206" />
-                        <path d="M 14,6 L 146,6 L 156,18 L 146,30 L 80,37 L 14,30 L 4,18 Z" fill={`url(#gold-p-base-${activeSlide})`} />
-                        <path d="M 16,8 L 144,8 L 152,18 L 144,28 L 80,34 L 16,28 L 8,18 Z" fill={`url(#gold-p-light-${activeSlide})`} />
-                        
-                        <rect x="74" y="12" width="12" height="12" rx="2" transform="rotate(45 80 18)" fill="#251206" />
-                        <rect x="76" y="14" width="8" height="8" rx="1" transform="rotate(45 80 18)" fill={gemColors.mid} />
-                        <circle cx="79" cy="16" r="1.2" fill="#ffffff" />
-                        
-                        <circle cx="24" cy="18" r="2.5" fill="#251206" />
-                        <circle cx="136" cy="18" r="2.5" fill="#251206" />
-                    </svg>
-                </div>
-
-                {/* Soporte Lateral Izquierdo */}
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-[10px] pointer-events-none z-50 w-8 h-24 flex items-center justify-center">
-                    <svg width="32" height="96" viewBox="0 0 32 96" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M 4,12 L 4,84 L 18,96 L 32,84 L 32,12 L 18,0 Z" fill="#251206" />
-                        <path d="M 6,14 L 6,82 L 18,92 L 30,82 L 30,14 L 18,4 Z" fill={`url(#gold-p-base-${activeSlide})`} />
-                        <path d="M 8,16 L 8,80 L 18,88 L 28,80 L 28,16 L 18,8 Z" fill={`url(#gold-p-light-${activeSlide})`} />
-                        <circle cx="18" cy="48" r="4.5" fill="#251206" />
-                        <circle cx="18" cy="48" r="2.5" fill={gemColors.light} />
-                    </svg>
-                </div>
-
-                {/* Soporte Lateral Derecho */}
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[10px] pointer-events-none z-50 w-8 h-24 flex items-center justify-center scale-x-[-1]">
-                    <svg width="32" height="96" viewBox="0 0 32 96" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M 4,12 L 4,84 L 18,96 L 32,84 L 32,12 L 18,0 Z" fill="#251206" />
-                        <path d="M 6,14 L 6,82 L 18,92 L 30,82 L 30,14 L 18,4 Z" fill={`url(#gold-p-base-${activeSlide})`} />
-                        <path d="M 8,16 L 8,80 L 18,88 L 28,80 L 28,16 L 18,8 Z" fill={`url(#gold-p-light-${activeSlide})`} />
-                        <circle cx="18" cy="48" r="4.5" fill="#251206" />
-                        <circle cx="18" cy="48" r="2.5" fill={gemColors.light} />
-                    </svg>
-                </div>
-
-                {/* --- Esquineros del Marco --- */}
-                {renderCorner('top-left')}
-                {renderCorner('top-right')}
-                {renderCorner('bottom-left')}
-                {renderCorner('bottom-right')}
-            </div>
-
-            {/* Placa Controladora de Navegación Runas (Bottom Center) */}
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[12px] pointer-events-auto z-[60] flex items-center justify-center">
-                <div className="relative h-12 w-48 flex items-center justify-center filter drop-shadow-[0_4px_6px_rgba(0,0,0,0.5)]">
-                    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 192 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M 15,2 L 177,2 L 192,20 L 177,38 L 96,46 L 15,38 L 0,20 Z" fill="#251206" />
-                        <path d="M 17,4 L 175,4 L 188,20 L 175,35 L 96,43 L 17,35 L 4,20 Z" fill={`url(#gold-p-base-${activeSlide})`} />
-                        <path d="M 19,6 L 173,6 L 184,20 L 173,32 L 96,40 L 19,32 L 8,20 Z" fill={`url(#gold-p-light-${activeSlide})`} />
-                    </svg>
-                    
-                    {/* Runas de Navegación Interactivas */}
-                    <div className="relative z-10 flex gap-6 justify-center items-center">
-                        {banners.map((_, dotIdx) => {
-                            const isActive = dotIdx === activeSlide;
-                            return (
-                                <button
-                                    key={dotIdx}
-                                    onClick={() => setActiveSlide(dotIdx)}
-                                    className="group/rune relative w-6.5 h-6.5 flex items-center justify-center transition-all duration-300"
-                                    title={`Ir a diapositiva ${dotIdx + 1}`}
-                                >
-                                    <div className={`absolute inset-0 rounded-full border-2 transition-all duration-300 ${
-                                        isActive 
-                                            ? 'border-[#251206] bg-[#150800] scale-115 shadow-[0_0_12px_rgba(255,255,255,0.35)]' 
-                                            : 'border-[#3a2212] bg-[#251206]/85 hover:bg-[#3a2212] hover:scale-110'
-                                    }`}>
-                                        <div 
-                                            className="absolute inset-[3px] rounded-full transition-all duration-500 flex items-center justify-center font-black text-[10px]"
-                                            style={{
-                                                backgroundColor: isActive ? gemColors.mid : '#251206',
-                                                color: isActive ? '#ffffff' : '#d4ad82',
-                                                boxShadow: isActive ? `0 0 10px ${gemColors.glow}, inset 0 0 4px #ffffff` : 'none',
-                                                textShadow: isActive ? '0 0 2px #fff' : 'none'
-                                            }}
-                                        >
-                                            {dotIdx + 1}
-                                        </div>
-                                    </div>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-            </div>
-
-            {/* Partículas Mágicas Flotantes en la Base del Marco */}
-            <div className="absolute inset-x-0 bottom-0 top-[75%] pointer-events-none overflow-hidden z-20">
-                {[...Array(6)].map((_, i) => {
-                    const delays = ['0s', '1.5s', '3s', '0.7s', '2.2s', '3.7s'];
-                    const lefts = ['12%', '32%', '52%', '72%', '45%', '88%'];
-                    const driftX = ['25px', '-35px', '45px', '-25px', '20px', '-20px'];
-                    return (
-                        <div
-                            key={i}
-                            className="absolute bottom-2.5 w-1.5 h-1.5 rounded-full"
-                            style={{
-                                left: lefts[i],
-                                backgroundColor: gemColors.glow,
-                                filter: `drop-shadow(0 0 4px ${gemColors.glow})`,
-                                animation: `particle-drift 4.5s infinite linear`,
-                                animationDelay: delays[i],
-                                '--drift-x': driftX[i],
-                            } as React.CSSProperties}
-                        />
+                        </div>
                     );
                 })}
             </div>
+
+            {/* Controles del Carousel */}
+            {!isSinglePreview && (
+                <>
+                    <button 
+                        onClick={prevSlide} 
+                        className="absolute left-4 lg:left-8 top-1/2 -translate-y-1/2 z-[40] bg-black/40 hover:bg-black/60 border border-white/20 backdrop-blur-md p-3.5 rounded-full text-white transition-all hover:scale-110 shadow-2xl hidden md:flex items-center justify-center"
+                    >
+                        <ChevronLeft className="w-6 h-6" />
+                    </button>
+                    <button 
+                        onClick={nextSlide} 
+                        className="absolute right-4 lg:right-8 top-1/2 -translate-y-1/2 z-[40] bg-black/40 hover:bg-black/60 border border-white/20 backdrop-blur-md p-3.5 rounded-full text-white transition-all hover:scale-110 shadow-2xl hidden md:flex items-center justify-center"
+                    >
+                        <ChevronRight className="w-6 h-6" />
+                    </button>
+                </>
+            )}
+
+            {/* Paginación Simple (Dots) */}
+            {!isSinglePreview && (
+                <div className="absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center justify-center gap-2 sm:gap-3">
+                    {banners.map((_, dotIdx) => {
+                    const isActive = dotIdx === activeSlide;
+                    return (
+                        <button
+                            key={dotIdx}
+                            onClick={() => setActiveSlide(dotIdx)}
+                            className="flex h-11 w-11 items-center justify-center rounded-full"
+                            title={`Ir a diapositiva ${dotIdx + 1}`}
+                            aria-label={`Ir a diapositiva ${dotIdx + 1}`}
+                        >
+                            <span className={`block rounded-full transition-all duration-300 ${
+                                isActive
+                                    ? 'h-2.5 w-8 bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]'
+                                    : 'h-2.5 w-2.5 bg-white/50 hover:bg-white/80'
+                            }`} />
+                        </button>
+                    );
+                })}
+                </div>
+            )}
         </section>
     );
 };

@@ -2,6 +2,7 @@ import IORedis from 'ioredis';
 import { WebSocket } from '@fastify/websocket';
 import { IRealtimeService, RealtimeEvent } from '../../application/interfaces/IRealtimeService';
 import { REALTIME_ADMIN_CHANNEL } from '../../application/interfaces/IRealtimePublisher';
+import { reportRedisError } from '../cache/redis-client';
 
 /** readyState del estándar WebSocket para una conexión abierta (ver comentario en sendSafe). */
 const WS_OPEN = 1;
@@ -24,6 +25,7 @@ export class WebSocketServer implements IRealtimeService {
   private readonly userConnections = new Map<string, Set<WebSocket>>();
   private readonly adminConnections = new Set<WebSocket>();
   private readonly publicConnections = new Set<WebSocket>();
+  private adminSubscriber: IORedis | null = null;
 
   /** Registra una conexión autenticada de usuario cliente */
   registerUserConnection(userId: string, socket: WebSocket): void {
@@ -91,12 +93,10 @@ export class WebSocketServer implements IRealtimeService {
    * `redisConnection.duplicate()`.
    */
   subscribeToAdminChannel(subscriber: IORedis): void {
-    subscriber.subscribe(REALTIME_ADMIN_CHANNEL, (err) => {
-      if (err) {
-        console.error('[WebSocketServer] No se pudo suscribir al canal admin de Redis:', err.message);
-      } else {
-        console.log(`[WebSocketServer] Suscrito a "${REALTIME_ADMIN_CHANNEL}" para eventos cross-process.`);
-      }
+    this.adminSubscriber = subscriber;
+
+    subscriber.subscribe(REALTIME_ADMIN_CHANNEL).catch((error: unknown) => {
+      reportRedisError('realtime-subscribe', error);
     });
 
     subscriber.on('message', (channel, message) => {
@@ -108,6 +108,14 @@ export class WebSocketServer implements IRealtimeService {
         // Mensaje malformado en el canal — ignorar silenciosamente.
       }
     });
+  }
+
+  /** Cierra la conexión dedicada de Pub/Sub durante el graceful shutdown. */
+  close(): void {
+    if (this.adminSubscriber) {
+      this.adminSubscriber.disconnect();
+      this.adminSubscriber = null;
+    }
   }
 
   /** Métricas de conexiones activas (útil para health checks y logging) */

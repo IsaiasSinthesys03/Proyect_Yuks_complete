@@ -206,6 +206,14 @@ export class ProductRepository implements IProductRepository {
       ])
       .where('products.is_deleted', '=', false)
       .where('products.status', '=', 'ACTIVE')
+      .where(({ exists, selectFrom }) =>
+        exists(
+          selectFrom('product_variants')
+            .select('product_variants.id')
+            .whereRef('product_variants.product_id', '=', 'products.id')
+            .where('product_variants.stock', '>', 0)
+        )
+      )
       .orderBy('products.created_at', 'desc')
       .limit(limit)
       .execute();
@@ -277,6 +285,18 @@ export class ProductRepository implements IProductRepository {
       price: parseFloat(row.price),
       hasVirtualReward: row.has_virtual_reward,
     };
+  }
+
+  async findVariantsByIds(variantIds: string[]): Promise<ProductVariant[]> {
+    if (variantIds.length === 0) return [];
+
+    const rows = await db
+      .selectFrom('product_variants')
+      .selectAll()
+      .where('id', 'in', variantIds)
+      .execute();
+
+    return rows.map((row) => this.mapRowToVariant(row));
   }
 
   async decrementStock(variantId: string, quantity: number): Promise<boolean> {

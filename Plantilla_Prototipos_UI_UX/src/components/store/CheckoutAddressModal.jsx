@@ -28,9 +28,12 @@ export const CheckoutAddressModal = ({ isOpen, close, showToast, onAddressReady 
     const [exteriorNumber, setExteriorNumber] = useState('');
     const [neighborhood, setNeighborhood] = useState('');
     const [references, setReferences] = useState('');
+    const [countryCode, setCountryCode] = useState('MX');
+    const [region, setRegion] = useState('');
+    const [city, setCity] = useState('');
 
     const queryClient = useQueryClient();
-    const auto = resolveByCp(cp);
+    const auto = countryCode === 'MX' ? resolveByCp(cp) : { state: region, municipality: city };
 
     // POST /api/profile/addresses (Fase 42): crea la dirección REAL y entrega
     // el addressId al flujo de pago (checkoutStore) vía onAddressReady.
@@ -43,6 +46,7 @@ export const CheckoutAddressModal = ({ isOpen, close, showToast, onAddressReady 
             postalCode: cp,
             municipality: auto.municipality,
             state: auto.state,
+            countryCode,
             references,
         }),
         onSuccess: (address) => {
@@ -59,8 +63,12 @@ export const CheckoutAddressModal = ({ isOpen, close, showToast, onAddressReady 
 
     const submit = (e) => {
         e.preventDefault();
-        if (cp.length !== 5) {
-            showToast('El Código Postal debe tener 5 dígitos.', 'error');
+        if (!/^[A-Z]{2}$/.test(countryCode) || !auto.state.trim() || !auto.municipality.trim()) {
+            showToast('Completa un país ISO, estado/región y ciudad válidos.', 'error');
+            return;
+        }
+        if (countryCode === 'MX' && cp.length !== 5) {
+            showToast('El Código Postal de México debe tener 5 dígitos.', 'error');
             return;
         }
         saveMutation.mutate();
@@ -68,31 +76,31 @@ export const CheckoutAddressModal = ({ isOpen, close, showToast, onAddressReady 
 
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in">
-            <form onSubmit={submit} className="bg-slate-800 border border-slate-700 rounded-3xl w-full max-w-lg p-8 shadow-2xl relative animate-in zoom-in-95">
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[100] flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
+            <form onSubmit={submit} className="mobile-scroll-safe bg-slate-800 border border-slate-700 rounded-2xl sm:rounded-3xl w-full max-w-lg p-5 sm:p-8 shadow-2xl relative animate-in zoom-in-95">
                 <button type="button" onClick={close} className="absolute top-6 right-6 text-slate-500 hover:text-white"><X className="w-6 h-6" /></button>
-                <h2 className="text-xl font-black text-white mb-2">Completa tu Registro</h2>
+                <h2 className="font-bungee text-lg sm:text-xl text-white leading-tight mb-3">Completa tu Registro</h2>
                 <p className="text-xs text-slate-400 mb-6">Un middleware ha detectado tu primera compra. Requerimos tu dirección de entrega por única vez.</p>
                 <div className="space-y-4">
                     <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">País (código ISO)</label>
+                        <input required value={countryCode} onChange={e => setCountryCode(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2))} type="text" placeholder="MX, JP, US…" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-emerald-500 transition-colors" />
+                    </div>
+                    <div>
                         <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Código Postal</label>
-                        <input required value={cp} onChange={e => setCp(e.target.value.replace(/\D/g, '').slice(0, 5))} type="text" placeholder="Ej. 97000" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-emerald-500 transition-colors" />
+                        <input required value={cp} onChange={e => setCp(countryCode === 'MX' ? e.target.value.replace(/\D/g, '').slice(0, 5) : e.target.value.toUpperCase().slice(0, 10))} type="text" placeholder="Ej. 97000" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-emerald-500 transition-colors" />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 min-[390px]:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Estado (Auto)</label>
-                            <select required value={auto.state} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none text-sm pointer-events-none opacity-80" onChange={() => {}}>
-                                {auto.state ? <option value={auto.state}>{auto.state}</option> : <option value="">Esperando CP...</option>}
-                            </select>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Estado / Región</label>
+                            <input required disabled={countryCode === 'MX'} value={auto.state} onChange={e => setRegion(e.target.value)} placeholder={countryCode === 'MX' ? 'Esperando CP...' : 'Ej. Tokio'} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none text-sm disabled:opacity-80" />
                         </div>
                         <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Municipio (Auto)</label>
-                            <select required value={auto.municipality} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none text-sm pointer-events-none opacity-80" onChange={() => {}}>
-                                {auto.municipality ? <option value={auto.municipality}>{auto.municipality}</option> : <option value="">Esperando CP...</option>}
-                            </select>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Ciudad / Municipio</label>
+                            <input required disabled={countryCode === 'MX'} value={auto.municipality} onChange={e => setCity(e.target.value)} placeholder={countryCode === 'MX' ? 'Esperando CP...' : 'Ciudad'} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none text-sm disabled:opacity-80" />
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 min-[390px]:grid-cols-2 gap-4">
                         <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Colonia</label><input required value={neighborhood} onChange={e => setNeighborhood(e.target.value)} type="text" placeholder="Ej. Centro" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none" /></div>
                         <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Número Exterior</label><input required value={exteriorNumber} onChange={e => setExteriorNumber(e.target.value)} type="text" placeholder="Ej. 123-B" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none" /></div>
                     </div>

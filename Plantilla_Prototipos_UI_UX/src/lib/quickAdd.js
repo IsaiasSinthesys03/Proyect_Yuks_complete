@@ -24,6 +24,7 @@ export async function quickAdd(productId, showToast) {
       productId: detail.product.id,
       name: detail.product.name,
       price: detail.product.price,
+      imageUrl: detail.product.imageUrl,
       size: variant.size,
       sku: variant.sku,
     });

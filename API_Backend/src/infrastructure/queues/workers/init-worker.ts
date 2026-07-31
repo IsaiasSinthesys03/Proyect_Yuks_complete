@@ -1,5 +1,5 @@
 import { Worker, Job } from 'bullmq';
-import { redisConnectionOptions } from '../../cache/redis-client';
+import { observeRedisEmitter, redisWorkerConnectionOptions } from '../../cache/redis-client';
 
 // Worker genérico que escucha la cola principal.
 // En fases posteriores, se despachará la lógica según job.name
@@ -28,10 +28,12 @@ const worker = new Worker(
     console.log(`✅ Trabajo [${job.name}] procesado exitosamente.`);
   },
   {
-    connection: redisConnectionOptions,
+    connection: redisWorkerConnectionOptions,
     concurrency: 5, // Procesa hasta 5 jobs en paralelo
   }
 );
+
+observeRedisEmitter(worker, 'worker:main');
 
 worker.on('failed', (job, err) => {
   console.error(`❌ Trabajo [${job?.name}] id=${job?.id} falló:`, err.message);

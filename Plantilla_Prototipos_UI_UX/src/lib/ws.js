@@ -15,6 +15,8 @@
  * notificaciones en vivo) se sumará en la Fase 54 pasando el JWT.
  */
 
+import { useAuthStore } from '../store/authStore';
+
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3000';
 const REALTIME_PATH = '/api/realtime/ws';
 
@@ -22,6 +24,8 @@ let socket = null;
 let shouldRun = false; // desactiva la reconexión tras disconnectRealtime()
 let reconnectAttempts = 0;
 let reconnectTimer = null;
+let authUnsubscribe = null;
+let activeToken = null;
 
 // Handlers por tipo de evento: { [type]: Set<fn> }
 const listeners = new Map();
@@ -45,7 +49,9 @@ function scheduleReconnect() {
 function open() {
   if (!shouldRun) return;
   try {
-    socket = new WebSocket(`${WS_URL}${REALTIME_PATH}`);
+    activeToken = useAuthStore.getState().accessToken;
+    const query = activeToken ? `?token=${encodeURIComponent(activeToken)}` : '';
+    socket = new WebSocket(`${WS_URL}${REALTIME_PATH}${query}`);
   } catch (e) {
     console.error('[ws] no se pudo abrir el socket', e);
     scheduleReconnect();
@@ -77,11 +83,28 @@ function open() {
   };
 }
 
+function reconnectForToken(nextToken) {
+  if (!shouldRun || nextToken === activeToken) return;
+  activeToken = nextToken;
+  reconnectAttempts = 0;
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  if (socket) {
+    try { socket.close(1000, 'Session changed'); } catch { socket = null; open(); }
+  } else {
+    open();
+  }
+}
+
 /** Inicia (idempotente) la conexión de tiempo real. */
 export function connectRealtime() {
   if (shouldRun && socket) return; // ya conectado o conectando
   shouldRun = true;
   reconnectAttempts = 0;
+  if (!authUnsubscribe) {
+    authUnsubscribe = useAuthStore.subscribe((state, previous) => {
+      if (state.accessToken !== previous.accessToken) reconnectForToken(state.accessToken);
+    });
+  }
   open();
 }
 
@@ -90,6 +113,8 @@ export function disconnectRealtime() {
   shouldRun = false;
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   if (socket) { try { socket.close(); } catch { /* noop */ } socket = null; }
+  if (authUnsubscribe) { authUnsubscribe(); authUnsubscribe = null; }
+  activeToken = null;
 }
 
 /**

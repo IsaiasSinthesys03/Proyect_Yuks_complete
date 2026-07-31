@@ -4,6 +4,7 @@ import StoreApp from './pages/store/StoreApp';
 import AdminApp from './pages/admin/AdminApp';
 import { bootstrapSession } from './lib/api';
 import { connectRealtime, disconnectRealtime } from './lib/ws';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
   // Bootstrap de sesión (Fase 38): al montar, intenta restaurar la sesión desde
@@ -18,9 +19,11 @@ export default function App() {
   }, []);
 
   return (
-    <Routes>
-      <Route path="/admin/*" element={<AdminApp />} />
-      <Route path="/*" element={<StoreApp />} />
-    </Routes>
+    <ErrorBoundary>
+      <Routes>
+        <Route path="/admin/*" element={<AdminApp />} />
+        <Route path="/*" element={<StoreApp />} />
+      </Routes>
+    </ErrorBoundary>
   );
 }

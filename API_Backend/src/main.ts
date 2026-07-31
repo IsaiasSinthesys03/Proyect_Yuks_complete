@@ -8,7 +8,7 @@ import dotenv from 'dotenv';
 
 // --- Infraestructura ---
 import { db } from './infrastructure/database/client';
-import { redisConnection } from './infrastructure/cache/redis-client';
+import { createRedisSubscriber, redisConnection } from './infrastructure/cache/redis-client';
 import { BullMQQueueService } from './infrastructure/queues/BullMQQueueService';
 
 // --- Repositorios (Adaptadores de Infraestructura) ---
@@ -102,6 +102,7 @@ import { GetPublicCheckoutConfigUseCase } from './application/use_cases/checkout
 
 // --- Casos de Uso: Pedidos / Webhook / Game Bridge (Fase 17) ---
 import { WebhookPaymentReconciliationUseCase } from './application/use_cases/orders/WebhookPaymentReconciliationUseCase';
+import { ValidateCartUseCase } from './application/use_cases/checkout/ValidateCartUseCase';
 import { CancelOrderUseCase } from './application/use_cases/orders/CancelOrderUseCase';
 import { ListOrdersUseCase } from './application/use_cases/orders/ListOrdersUseCase';
 import { GetOrderDetailUseCase } from './application/use_cases/orders/GetOrderDetailUseCase';
@@ -273,6 +274,8 @@ import { buildAdminRefundRoutes } from './infrastructure/http/routes/adminRefund
 import { buildDonationRoutes } from './infrastructure/http/routes/donationRoutes';
 import { buildAdminDonationRoutes } from './infrastructure/http/routes/adminDonationRoutes';
 import { buildRealtimeRoutes } from './infrastructure/http/routes/realtimeRoutes';
+import { buildGeographyRoutes } from './infrastructure/http/routes/geographyRoutes';
+import { GeographyCatalogService } from './infrastructure/services/geography/GeographyCatalogService';
 
 // --- Rutas: CMS Contenido + Analytics (Fase 30) ---
 import { buildAdminBannerRoutes } from './infrastructure/http/routes/adminBannerRoutes';
@@ -485,6 +488,7 @@ async function main(): Promise<void> {
     ? new SimulatedPaymentAdapter()
     : new StripeAdapter(STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET);
   const gameApiClient = new GameApiClient(GAME_API_BASE_URL, GAME_API_M2M_TOKEN);
+  const geographyCatalogService = new GeographyCatalogService();
   const queueService = new BullMQQueueService();
 
   // Fase 29 — Auth avanzada: TOTP (2FA) + OAuth Google
@@ -505,10 +509,11 @@ async function main(): Promise<void> {
   // Fase 31: suscribir la API al canal Redis de admins para recibir eventos
   // publicados por procesos worker (ej. reportes listos) y reenviarlos por WS.
   // Se usa una conexión Redis DEDICADA (modo suscriptor bloquea otros comandos).
-  wsServer.subscribeToAdminChannel(redisConnection.duplicate());
-  if (!EMAIL_API_KEY) {
-    console.warn('⚠️  EMAIL_API_KEY no configurado. El worker:email fallará al enviar correos hasta configurarla.');
-  }
+  wsServer.subscribeToAdminChannel(createRedisSubscriber());
+  // TODO: Re-habilitar cuando se configure EMAIL_API_KEY en producción
+  // if (!EMAIL_API_KEY) {
+  //   console.warn('⚠️  EMAIL_API_KEY no configurado. El worker:email fallará al enviar correos hasta configurarla.');
+  // }
 
   // 3.3 Casos de Uso — Auth (preexistente + Fase 20 Refresh Token)
   const registerUserUseCase = new RegisterUserUseCase(userRepository);
@@ -566,8 +571,8 @@ async function main(): Promise<void> {
 
   // 3.6 Casos de Uso — Direcciones (Fase 15)
   const listAddressesUseCase = new ListAddressesUseCase(addressRepository);
-  const createAddressUseCase = new CreateAddressUseCase(addressRepository);
-  const updateAddressUseCase = new UpdateAddressUseCase(addressRepository);
+  const createAddressUseCase = new CreateAddressUseCase(addressRepository, geographyCatalogService);
+  const updateAddressUseCase = new UpdateAddressUseCase(addressRepository, geographyCatalogService);
   const deleteAddressUseCase = new DeleteAddressUseCase(addressRepository);
   const setDefaultAddressUseCase = new SetDefaultAddressUseCase(addressRepository);
 
@@ -791,7 +796,8 @@ async function main(): Promise<void> {
   const walletController = new WalletController(getWalletUseCase, getWalletLedgerUseCase);
   const rewardController = new RewardController(getUserRewardsUseCase, validateRewardM2MUseCase);
   const getPublicCheckoutConfigUseCase = new GetPublicCheckoutConfigUseCase(systemSettingsRepository);
-  const checkoutController = new CheckoutController(processCheckoutUseCase, getPublicCheckoutConfigUseCase);
+  const validateCartUseCase = new ValidateCartUseCase(productRepository);
+  const checkoutController = new CheckoutController(processCheckoutUseCase, getPublicCheckoutConfigUseCase, validateCartUseCase);
   const webhookController = new WebhookController(webhookReconciliationUseCase, confirmDonationWebhookUseCase);
   const orderController = new OrderController(listOrdersUseCase, getOrderDetailUseCase, cancelOrderUseCase);
   const adminAuthController = new AdminAuthController(
@@ -913,6 +919,7 @@ async function main(): Promise<void> {
   // ==========================================
   fastify.register(buildAuthRoutes(authController), { prefix: '/api/auth' });
   fastify.register(buildProductRoutes(productController), { prefix: '/api/products' });
+  fastify.register(buildGeographyRoutes(geographyCatalogService), { prefix: '/api/geography' });
   fastify.register(buildProfileRoutes(profileController), { prefix: '/api/profile' });
   fastify.register(buildAddressRoutes(addressController), { prefix: '/api/profile/addresses' });
   fastify.register(buildWalletRoutes(walletController), { prefix: '/api/profile/wallet' });
@@ -1028,7 +1035,12 @@ async function main(): Promise<void> {
     console.log(`\n⚡ Señal ${signal} recibida. Cerrando servidor...`);
     try {
       await fastify.close();
-      await redisConnection.quit();
+      wsServer.close();
+      if (redisConnection.status === 'ready') {
+        await redisConnection.quit();
+      } else {
+        redisConnection.disconnect();
+      }
       await db.destroy();
       console.log('✅ Servidor cerrado limpiamente.');
       process.exit(0);

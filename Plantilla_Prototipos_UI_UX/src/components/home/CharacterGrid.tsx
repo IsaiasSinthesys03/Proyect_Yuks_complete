@@ -28,7 +28,7 @@ export const CharacterGrid: React.FC<CharacterGridProps> = ({ children }) => {
     ];
 
     return (
-        <section id="personajes" className="pt-24 pb-4 bg-[#3a2212] relative overflow-hidden !mt-0" style={{ marginBottom: '-150px' }}>
+        <section id="personajes" className="pt-24 pb-4 bg-[#3a2212] relative overflow-hidden !mt-0 -mb-0 xl:-mb-[150px]">
             {/* Fondo de patrón SVG integrado de madera selvática */}
             <div 
                 className="absolute inset-0 pointer-events-none" 
@@ -37,24 +37,65 @@ export const CharacterGrid: React.FC<CharacterGridProps> = ({ children }) => {
                     backgroundRepeat: 'repeat'
                 }}
             ></div>
+            <style>{`
+                @keyframes scroll-marquee {
+                    0% { transform: translateX(0); }
+                    100% { transform: translateX(-50%); }
+                }
+                .marquee-mobile {
+                    display: flex;
+                    width: max-content;
+                }
+                @media (max-width: 767px) {
+                    .marquee-mobile {
+                        animation: scroll-marquee 15s linear infinite;
+                    }
+                    /* Pausar la animación al tocar (opcional, para dejar voltear la tarjeta a gusto) */
+                    .marquee-mobile:active {
+                        animation-play-state: paused;
+                    }
+                }
+            `}</style>
             
             <div className="container mx-auto px-6 lg:px-12 relative z-10">
                 <div className="text-center mb-16">
-                    <h2 className="text-4xl font-black text-white">Domina el Campo</h2>
+                    <h2 className="font-bungee text-3xl md:text-4xl text-white leading-tight">Domina el Campo</h2>
                     <p className="text-white/80 mt-2 font-bold">Conoce a tus aliados en esta aventura.</p>
                 </div>
                 
-                {/* Cuadrícula de Tarjetas con la Perspectiva requerida para el efecto 3D global */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 [perspective:1000px]">
-                    {characters.map((char, i) => (
-                        <FlipCard 
-                            key={i} 
-                            name={char.name} 
-                            frontImage={char.front} 
-                            backImage={char.back} 
-                            offsetX={char.offsetX} 
-                        />
-                    ))}
+                {/* Carrusel infinito en móvil, Cuadrícula en Desktop */}
+                <div className="overflow-hidden pb-8 -mx-6 px-6 md:mx-0 md:px-0 md:overflow-visible">
+                    <div className="marquee-mobile md:grid md:grid-cols-3 md:!animate-none md:!w-auto gap-0 md:gap-8 [perspective:1000px]">
+                        
+                        {/* Primera tanda de tarjetas */}
+                        <div className="flex md:contents gap-6 md:gap-0 px-3 md:px-0">
+                            {characters.map((char, i) => (
+                                <div key={`first-${i}`} className="shrink-0 w-[280px] sm:w-[320px] md:w-auto drop-shadow-2xl md:snap-center">
+                                    <FlipCard 
+                                        name={char.name} 
+                                        frontImage={char.front} 
+                                        backImage={char.back} 
+                                        offsetX={char.offsetX} 
+                                    />
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Segunda tanda de tarjetas (solo visible en móvil para lograr el loop infinito) */}
+                        <div className="flex md:hidden gap-6 px-3 ml-6 md:ml-0">
+                            {characters.map((char, i) => (
+                                <div key={`second-${i}`} className="shrink-0 w-[280px] sm:w-[320px] drop-shadow-2xl">
+                                    <FlipCard 
+                                        name={char.name} 
+                                        frontImage={char.front} 
+                                        backImage={char.back} 
+                                        offsetX={char.offsetX} 
+                                    />
+                                </div>
+                            ))}
+                        </div>
+
+                    </div>
                 </div>
             </div>
 

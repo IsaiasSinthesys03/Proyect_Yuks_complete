@@ -27,9 +27,42 @@ export function useAddresses(enabled = true) {
   });
 }
 
+export function useCountries(enabled = true) {
+  return useQuery({
+    queryKey: ['geography', 'countries'],
+    queryFn: async () => unwrap(await api.get('/api/geography/countries')),
+    enabled,
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
+export function useStates(countryCode, enabled = true) {
+  return useQuery({
+    queryKey: ['geography', 'states', countryCode],
+    queryFn: async () => unwrap(await api.get(`/api/geography/countries/${countryCode}/states`)),
+    enabled: enabled && /^[A-Z]{2}$/.test(countryCode || ''),
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
+export function useCities(countryCode, stateCode, enabled = true) {
+  return useQuery({
+    queryKey: ['geography', 'cities', countryCode, stateCode],
+    queryFn: async () => unwrap(await api.get(
+      `/api/geography/countries/${countryCode}/states/${encodeURIComponent(stateCode)}/cities`
+    )),
+    enabled: enabled && /^[A-Z]{2}$/.test(countryCode || '') && !!stateCode,
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
 /** POST /api/profile/addresses — crea una dirección de entrega (REQ-FE-09). */
 export async function createAddress(dto) {
   return unwrap(await api.post('/api/profile/addresses', dto));
+}
+
+export async function checkShippingCoverage(addressId) {
+  return unwrap(await api.post('/api/checkout/coverage', { addressId }));
 }
 
 /**
@@ -38,10 +71,8 @@ export async function createAddress(dto) {
  * `idempotencyKey` en el body). Genera un UUID por intento.
  * Respuesta 201: { donationId, clientSecret, amount, donorEmail, status:'PENDING' }.
  *
- * TODO: STRIPE — igual que el checkout: hoy el backend corre con
- * PAYMENTS_SIMULATED=true y el `clientSecret` es ficticio (pi_sim_...). Con
- * claves reales, ese secret se pasa a `stripe.confirmPayment` (PaymentElement).
- * La donación SÍ se registra REAL en la BD (estado PENDING).
+ * El clientSecret se confirma con Stripe PaymentElement en DonationModal.
+ * El webhook firmado cambia la donación de PENDING a COMPLETED.
  */
 export async function donate(amount, donorEmail) {
   const idempotencyKey = crypto?.randomUUID?.() || `don-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -71,10 +102,8 @@ export async function setDefaultAddress(id) {
  *
  * Respuesta 201: { orderId, status, totalPaid, stripeClientSecret }.
  *
- * TODO: STRIPE — con claves reales, el `stripeClientSecret` devuelto aquí se
- * pasa a `stripe.confirmPayment({ elements, clientSecret })` (PaymentElement,
- * con soporte 3DS). Hoy el backend corre con PAYMENTS_SIMULATED=true y el
- * secret es ficticio (pi_sim_...): la confirmación se simula en PaymentModal.
+ * PaymentModal monta PaymentForm/PaymentElement con este `stripeClientSecret` y usa
+ * `stripe.confirmPayment` con soporte de autenticación 3DS.
  */
 export async function processCheckout({ items, addressId, termsVersion, couponCode, walletAmount }) {
   const idempotencyKey = crypto?.randomUUID?.() || `idem-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -88,5 +117,18 @@ export async function processCheckout({ items, addressId, termsVersion, couponCo
   const res = await api.post('/api/checkout', body, {
     headers: { 'X-Idempotency-Key': idempotencyKey },
   });
+  return unwrap(res);
+}
+
+/**
+ * validateCart — Valida el stock del carrito en masa.
+ * POST /api/checkout/validate-cart
+ * Recibe: [{ variantId, quantity }]
+ * Retorna: [{ variantId, availableStock, status }]
+ */
+export async function validateCart(items) {
+  if (!items || items.length === 0) return [];
+  const body = items.map((i) => ({ variantId: i.variantId, quantity: i.quantity }));
+  const res = await api.post('/api/checkout/validate-cart', body);
   return unwrap(res);
 }

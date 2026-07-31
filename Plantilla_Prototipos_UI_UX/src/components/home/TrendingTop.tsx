@@ -2,6 +2,8 @@ import React from 'react';
 import { ChevronRight, Heart, Package, ShoppingCart } from 'lucide-react';
 import { useTopProducts } from '../../api/products';
 import { quickAdd } from '../../lib/quickAdd';
+import { useWishlistToggle } from '../../hooks/useWishlistToggle';
+import { CatalogProductCard } from '../store/CatalogProductCard';
 
 interface TrendingTopProps {
     navigate: (view: string, id?: any) => void;
@@ -9,6 +11,7 @@ interface TrendingTopProps {
 }
 
 export const TrendingTop: React.FC<TrendingTopProps> = ({ navigate, showToast }) => {
+    const wishlist = useWishlistToggle(showToast);
     // [Fase 39] Top Ventas desde la BD (REQ-FE-02, cacheado en Redis 1h por el backend).
     // Mientras carga, `products` está vacío → la grilla se puebla al llegar la data
     // (sin skeleton, no rompe la maqueta; el encabezado de la sección permanece).
@@ -18,10 +21,7 @@ export const TrendingTop: React.FC<TrendingTopProps> = ({ navigate, showToast })
     return (
         <section
             id="tienda"
-            className="relative py-28 border-y border-[#3a2212]/30 overflow-hidden bg-cover bg-center bg-no-repeat"
-            style={{
-                backgroundImage: "url('/assets/imgWeb/Banner_Tienda/Fondo_2.png')"
-            }}
+            className="relative py-8 sm:py-12 overflow-hidden"
         >
 
             {/* Hojas Colgantes (Invertidas, más grandes y posicionadas orgánicamente en la esquina) */}
@@ -33,10 +33,10 @@ export const TrendingTop: React.FC<TrendingTopProps> = ({ navigate, showToast })
                 />
             </div>
 
-            <div className="container mx-auto px-6 lg:px-12 relative z-20">
-                <div className="flex justify-between items-end mb-12">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-12 relative z-20">
+                <div className="flex flex-col min-[390px]:flex-row min-[390px]:justify-between min-[390px]:items-end gap-5 mb-8 sm:mb-12">
                     <div>
-                        <h2 className="text-4xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                        <h2 className="font-bungee text-3xl md:text-4xl text-white leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
                             Trending <span className="text-[#ffce07]">Top</span>
                         </h2>
                         <p className="text-white/90 mt-2 font-bold drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
@@ -45,7 +45,7 @@ export const TrendingTop: React.FC<TrendingTopProps> = ({ navigate, showToast })
                     </div>
                     <button
                         onClick={() => navigate('store')}
-                        className="group relative px-7 py-3 rounded-2xl font-black text-xs md:text-sm uppercase tracking-wider text-white border-[2.5px] border-[#3a2212] bg-gradient-to-b from-[#24b42b] via-[#1a9a21] to-[#0f5c14] shadow-[0_4px_0_#3a2212,0_6px_10px_rgba(0,0,0,0.4)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[0_5px_0_#3a2212,0_8px_12px_rgba(0,0,0,0.5)] active:translate-y-[3.5px] active:shadow-[0_0.5px_0_#3a2212,0_2px_4px_rgba(0,0,0,0.3)] transition-all flex items-center gap-2.5 overflow-hidden"
+                        className="group relative w-full min-[390px]:w-auto justify-center px-4 sm:px-6 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl font-bungee text-[9px] md:text-xs uppercase tracking-wide text-white border-[2px] sm:border-[2.5px] border-[#3a2212] bg-gradient-to-b from-[#24b42b] via-[#1a9a21] to-[#0f5c14] shadow-[0_3px_0_#3a2212,0_4px_8px_rgba(0,0,0,0.4)] sm:shadow-[0_4px_0_#3a2212,0_6px_10px_rgba(0,0,0,0.4)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[0_4px_0_#3a2212,0_6px_10px_rgba(0,0,0,0.5)] sm:hover:shadow-[0_5px_0_#3a2212,0_8px_12px_rgba(0,0,0,0.5)] active:translate-y-[3px] sm:active:translate-y-[3.5px] active:shadow-[0_0.5px_0_#3a2212,0_2px_4px_rgba(0,0,0,0.3)] transition-all flex items-center gap-2 overflow-hidden"
                         style={{
                             textShadow: '0 2px 3px rgba(0,0,0,0.6)'
                         }}
@@ -65,127 +65,21 @@ export const TrendingTop: React.FC<TrendingTopProps> = ({ navigate, showToast })
                     </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                    {products.map((product, index) => {
-                        const isEven = index % 2 === 0;
-                        const frameImage = isEven
-                            ? '/assets/imgWeb/Banner_Tienda/Producto_1.png'
-                            : '/assets/imgWeb/Banner_Tienda/Producto_2.png';
-
-                        // Estilos de recorte para reescalar la imagen de 1920x1080 
-                        // de modo que el marco real ocupe exactamente las dimensiones del contenedor.
-                        const imageStyle: React.CSSProperties = isEven
-                            ? {
-                                width: '391%',
-                                height: '157%',
-                                left: '-64.4%',
-                                top: '-31.7%',
-                                position: 'absolute',
-                                objectFit: 'fill',
-                            }
-                            : {
-                                width: '404%',
-                                height: '154%',
-                                left: '-170.5%',
-                                top: '-28.7%',
-                                position: 'absolute',
-                                objectFit: 'fill',
-                            };
-
-                        return (
-                            <div
-                                key={product.id}
-                                className="group relative w-full overflow-hidden drop-shadow-xl hover:drop-shadow-2xl transition-all duration-300 hover:scale-[1.02] cursor-pointer"
-                                style={{ aspectRatio: '3 / 4.35' }}
-                                onClick={() => navigate('product', product.id)}
-                            >
-                                {/* 1. Imagen del marco asimétrico (Fondo de borde de la tarjeta) */}
-                                <div className="absolute inset-0 w-full h-full z-10 overflow-hidden pointer-events-none">
-                                    <img
-                                        src={frameImage}
-                                        alt={product.name}
-                                        className="max-w-none"
-                                        style={imageStyle}
-                                    />
-                                </div>
-
-                                {/* 2. Contenedor de Contenido (Perfectamente alineado dentro del recorte del marco) */}
-                                <div className="absolute inset-0 z-20 flex flex-col justify-between pt-[10%] pb-[12%] px-[12%]">
-
-                                    {/* Sección Superior: Insignias, botón de favoritos e ícono del producto */}
-                                    <div className="relative flex-1 flex flex-col min-h-0">
-
-                                        {/* Botones superiores dentro del marco */}
-                                        <div className={`flex justify-end items-start w-full z-30 pt-5 px-1 ${isEven ? 'pr-4' : 'pr-1'}`}>
-                                            {/* Botón Corazón - Rombo de Madera Tallada (Elegante y Profesional) */}
-                                            <button
-                                                className="relative group/heart w-9 h-9 rounded-xl border-[1.5px] border-[#3a2212] bg-gradient-to-b from-[#e6c59e] via-[#d4ad82] to-[#b88d5e] shadow-[0_3px_0_#3a2212,0_4px_6px_rgba(0,0,0,0.15)] flex items-center justify-center rotate-[-4deg] hover:rotate-0 hover:scale-105 hover:shadow-[0_4px_0_#3a2212,0_5px_8px_rgba(0,0,0,0.2)] hover:brightness-110 active:translate-y-[2px] active:shadow-[0_1px_0_#3a2212,0_2px_4px_rgba(0,0,0,0.1)] transition-all z-30 overflow-hidden"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    showToast('Añadido a favoritos', 'success');
-                                                }}
-                                                title="Añadir a favoritos"
-                                            >
-                                                {/* Reflejo superior suave */}
-                                                <div className="absolute top-0 inset-x-0 h-1/2 bg-gradient-to-b from-white/35 to-transparent pointer-events-none rounded-t-xl"></div>
-                                                
-                                                {/* Toque de musgo muy sutil y limpio en la esquina inferior */}
-                                                <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#1a9a21] opacity-35 blur-[1.5px] rounded-full pointer-events-none"></div>
-
-                                                <Heart className="relative z-10 w-4.5 h-4.5 text-[#3a2212] stroke-[2.5] fill-transparent group-hover/heart:fill-[#1a9a21] group-hover/heart:text-[#1a9a21] transition-colors duration-300" />
-                                            </button>
-                                        </div>
-
-                                        {/* Ícono de Producto (Centrado en la parte superior sin chocar con el texto) */}
-                                        <div className="flex-1 flex items-center justify-center min-h-0 group-hover:scale-110 transition-transform duration-500 pb-2">
-                                            <Package className="w-20 h-20 text-[#1a9a21]/15" />
-                                        </div>
-
-                                    </div>
-
-                                    {/* Sección Inferior: Información del Producto (Alineada verticalmente al centro con el botón) */}
-                                    <div
-                                        className="flex items-center justify-between relative z-30 px-1"
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
-                                        {/* Bloque de texto alineado y con contorno blanco grueso de 1.5px */}
-                                        <div
-                                            className="space-y-0.5"
-                                            style={{
-                                                textShadow: '1.5px 1.5px 0px #fff, -1.5px -1.5px 0px #fff, 1.5px -1.5px 0px #fff, -1.5px 1.5px 0px #fff, 0 2px 4px rgba(255,255,255,0.7)'
-                                            }}
-                                        >
-                                            <h3 className="font-extrabold text-slate-950 text-xs md:text-sm leading-tight">
-                                                {product.name}
-                                            </h3>
-                                            <p className="text-[#0f5c14] text-[9px] font-black uppercase tracking-wider">
-                                                {product.categoryName || 'Edición Especial'}
-                                            </p>
-                                            <div className="text-sm md:text-base font-black text-slate-950 leading-none mt-0.5">
-                                                ${product.price}
-                                            </div>
-                                        </div>
-
-                                        {/* Botón Agregar a puro código - Estilo Madera Clara (Solo Ícono) */}
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                quickAdd(product.id, showToast); // Fase 42: carrito real (1ª variante con stock)
-                                            }}
-                                            title="Agregar al carrito"
-                                            className="relative group flex items-center justify-center w-10 h-10 mr-3 overflow-hidden rounded-full border-[1.5px] border-[#3a2212] bg-gradient-to-b from-[#e6c59e] via-[#d4ad82] to-[#b88d5e] shadow-[0_3px_0_#3a2212,0_4px_6px_rgba(0,0,0,0.2)] transition-all hover:-translate-y-0.5 hover:shadow-[0_4px_0_#3a2212,0_5px_8px_rgba(0,0,0,0.3)] hover:brightness-110 active:translate-y-[3px] active:shadow-[0_0px_0_#3a2212,0_1px_2px_rgba(0,0,0,0.2)]"
-                                        >
-                                            {/* Reflejo superior suave */}
-                                            <div className="absolute top-0 inset-x-0 h-1/2 bg-gradient-to-b from-white/40 to-transparent pointer-events-none rounded-t-full"></div>
-
-                                            <ShoppingCart className="relative z-10 w-5 h-5 text-[#3a2212] stroke-[2.5] -ml-0.5" />
-                                        </button>
-                                    </div>
-
-                                </div>
-                            </div>
-                        );
-                    })}
+                <div 
+                    className="flex lg:grid gap-3 sm:gap-5 lg:gap-8 overflow-x-auto lg:overflow-visible lg:grid-cols-4 pb-4 lg:pb-0 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 lg:mx-0 lg:px-0"
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                    {products.map((product, index) => (
+                        <div key={product.id} className="shrink-0 w-[150px] sm:w-[200px] lg:w-auto snap-start sm:snap-center lg:snap-align-none">
+                            <CatalogProductCard
+                                product={product}
+                                index={index}
+                                navigate={navigate}
+                                showToast={showToast}
+                                isTrending={true}
+                            />
+                        </div>
+                    ))}
                 </div>
             </div>
 

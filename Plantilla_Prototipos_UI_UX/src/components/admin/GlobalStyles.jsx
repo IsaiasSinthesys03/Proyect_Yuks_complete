@@ -18,23 +18,27 @@ export const GlobalStyles = () => (
             --brand-secondary: #ec1676;
             --brand-warning: #ffce07;
             --brand-success: #96c93e;
-            --brand-deep: #502c84;
-            --bg-deep: #0a0b14;
+            --brand-deep: #0a2e0d;
+            --brand-deep-dark: #061f09;
+            --brand-wood: #e6c59e;
+            --brand-moss: #1a9a21;
+            --bg-deep: #061f09;
         }
         
         .bg-brand-gradient {
-            background: radial-gradient(circle at 50% -20%, #502c84 0%, #0a0b14 100%);
+            background:
+                radial-gradient(circle at 82% -15%, rgba(3, 187, 211, 0.12), transparent 34%),
+                radial-gradient(circle at 12% 110%, rgba(150, 201, 62, 0.14), transparent 38%),
+                linear-gradient(145deg, #061f09 0%, #0a2e0d 48%, #061f09 100%);
         }
 
         .glass-sidebar {
-            background: linear-gradient(180deg, rgba(80, 44, 132, 0.15) 0%, rgba(10, 11, 20, 0.95) 100%);
-            backdrop-filter: blur(10px);
+            background: linear-gradient(180deg, rgba(10, 46, 13, 0.92) 0%, rgba(6, 31, 9, 0.97) 100%);
+            backdrop-filter: blur(18px);
         }
 
         .brand-shadow {
-            box-shadow: 0 10px 30px -10px rgba(3, 187, 211, 0.3);
-        }
-            --brand-deep-dark: #3a1f61;
+            box-shadow: 0 18px 45px -18px rgba(3, 187, 211, 0.35);
         }
         .bg-brand-primary { background-color: var(--brand-primary); }
         .text-brand-primary { color: var(--brand-primary); }
@@ -56,8 +60,8 @@ export const GlobalStyles = () => (
         
         /* Custom Scrollbar using brand colors */
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #0b1121; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #061f09; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1a5521; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--brand-primary); }
     `}} />
 );

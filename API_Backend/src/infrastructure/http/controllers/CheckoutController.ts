@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { ProcessCheckoutUseCase } from '../../../application/use_cases/checkout/ProcessCheckoutUseCase';
 import { GetPublicCheckoutConfigUseCase } from '../../../application/use_cases/checkout/GetPublicCheckoutConfigUseCase';
+import { ValidateCartUseCase } from '../../../application/use_cases/checkout/ValidateCartUseCase';
 import { CheckoutRequestDTO } from '../../../domain/types/CheckoutDTOs';
 import {
   IdempotencyConflictError,
@@ -30,6 +31,7 @@ export class CheckoutController {
   constructor(
     private readonly processCheckoutUseCase: ProcessCheckoutUseCase,
     private readonly getPublicCheckoutConfigUseCase: GetPublicCheckoutConfigUseCase,
+    private readonly validateCartUseCase: ValidateCartUseCase,
   ) {}
 
   /**
@@ -91,6 +93,21 @@ export class CheckoutController {
       return void reply.status(200).send({
         statusCode: 200,
         message: 'El domicilio se encuentra dentro de la cobertura.',
+        data: result,
+      });
+    } catch (error) {
+      return this.handleError(error, reply);
+    }
+  }
+
+  /** POST /api/checkout/validate-cart — valida el inventario antes de pagar. */
+  async validateCart(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const items = request.body as { variantId: string; quantity: number }[];
+      const result = await this.validateCartUseCase.execute(items);
+      return void reply.status(200).send({
+        statusCode: 200,
+        message: 'Carrito validado exitosamente.',
         data: result,
       });
     } catch (error) {

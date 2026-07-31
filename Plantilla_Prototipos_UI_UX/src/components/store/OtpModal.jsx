@@ -68,13 +68,13 @@ export const OtpModal = ({ isOpen, close, showToast }) => {
 
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in">
-            <div className="bg-slate-800 border border-slate-700 rounded-3xl w-full max-w-sm p-8 shadow-2xl text-center relative">
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[100] flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
+            <div className="bg-slate-800 border border-slate-700 rounded-2xl sm:rounded-3xl w-full max-w-sm p-5 sm:p-8 shadow-2xl text-center relative">
                 <button onClick={close} className="absolute top-4 right-4 text-slate-500 hover:text-white"><X className="w-5 h-5" /></button>
                 <ShieldAlert className="w-12 h-12 text-emerald-500 mx-auto mb-4" />
-                <h2 className="text-xl font-black text-white mb-2">Verificación OTP</h2>
+                <h2 className="font-bungee text-lg sm:text-xl text-white leading-tight mb-3">Verificación OTP</h2>
                 <p className="text-xs text-slate-400 mb-6">Enviamos un código de 6 dígitos a tu correo actual para autorizar la modificación de datos de seguridad.</p>
-                <div className="flex gap-2 justify-center mb-6">
+                <div className="flex gap-1.5 min-[390px]:gap-2 justify-center mb-6">
                     {[0, 1, 2, 3, 4, 5].map(i => (
                         <input
                             key={i}
@@ -85,7 +85,7 @@ export const OtpModal = ({ isOpen, close, showToast }) => {
                             type="text"
                             inputMode="numeric"
                             maxLength="1"
-                            className="w-10 h-12 bg-slate-900 border border-slate-700 rounded-lg text-center text-white font-black text-xl outline-none focus:border-emerald-500"
+                            className="w-8 min-[390px]:w-10 h-12 bg-slate-900 border border-slate-700 rounded-lg text-center text-white font-black text-xl outline-none focus:border-emerald-500"
                         />
                     ))}
                 </div>

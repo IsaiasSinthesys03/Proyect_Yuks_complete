@@ -10,8 +10,8 @@ import {
     Sparkles, Terminal, Eye as ViewIcon, Zap, Navigation, Star, Share2, ShieldCheck
 } from 'lucide-react';
 
-
 import { useAuthStore } from '../../store/authStore';
+import { useUiStore } from '../../store/uiStore';
 import { useCheckoutStore } from '../../store/checkoutStore';
 import { logout as apiLogout } from '../../lib/api';
 import { onRealtimeEvent } from '../../lib/ws';
@@ -97,13 +97,21 @@ export default function AnimayuksWeb() {
         }
     `;
 
-    const [currentView, setCurrentView] = useState('landing');
+    const initialLegalSlug = (() => {
+        const pathSlug = window.location.pathname.match(/\/legal\/(privacy|terms|shipping|returns)\/?$/)?.[1];
+        return pathSlug || 'terms';
+    })();
+    const [currentView, setCurrentView] = useState(() => { const path = window.location.pathname; if (path.includes('legal') || path.includes('privacidad') || path.includes('terminos')) return 'legal'; if (path.includes('store') || path.includes('catalogo')) return 'store'; return 'landing'; });
+    const [previousView, setPreviousView] = useState('landing');
+    const [selectedLegalSlug, setSelectedLegalSlug] = useState(initialLegalSlug);
     const [selectedProductId, setSelectedProductId] = useState(null);
 
     // Modals & Drawers
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
-    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    const isAuthModalOpen = useUiStore((state) => state.isAuthModalOpen);
+    const openAuth = useUiStore((state) => state.openAuth);
+    const closeAuth = useUiStore((state) => state.closeAuth);
     const [isDonationOpen, setIsDonationOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -188,8 +196,26 @@ export default function AnimayuksWeb() {
     };
 
     const navigate = (view, payload = null) => {
+        if (view === -1 || view === 'back') {
+            const targetView = previousView || 'landing';
+            setCurrentView(targetView);
+            setIsMobileMenuOpen(false);
+            setIsCommandOpen(false);
+            window.scrollTo(0, 0);
+            return;
+        }
+        if (typeof view !== 'string') return;
+        if (currentView !== 'legal') {
+            setPreviousView(currentView);
+        }
         if (view === 'product' && payload) setSelectedProductId(payload);
-        setCurrentView(view);
+        if (view.startsWith('legal')) {
+            const requestedSlug = view.includes(':') ? view.split(':')[1] : payload;
+            setSelectedLegalSlug(requestedSlug || 'terms');
+            setCurrentView('legal');
+        } else {
+            setCurrentView(view);
+        }
         setIsMobileMenuOpen(false);
         setIsCommandOpen(false);
         window.scrollTo(0, 0);
@@ -201,14 +227,14 @@ export default function AnimayuksWeb() {
 
             {/* Toast Notifier */}
             {toast && (
-                <div className={`fixed top-24 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full font-bold shadow-2xl animate-in slide-in-from-top-4 z-[100] flex items-center gap-2 ${toast.type === 'success' ? 'bg-[#03bbd3] text-white' : toast.type === 'warning' ? 'bg-[#ffce07] text-slate-900' : 'bg-[#ec1676] text-white'}`}>
+                <div className={`fixed top-20 left-3 right-3 sm:top-24 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 px-4 sm:px-6 py-3 rounded-2xl sm:rounded-full font-bold text-sm text-center shadow-2xl animate-in slide-in-from-top-4 z-[9999] flex items-center justify-center gap-2 ${toast.type === 'success' ? 'bg-[#03bbd3] text-white' : toast.type === 'warning' ? 'bg-[#ffce07] text-slate-900' : 'bg-[#ec1676] text-white'}`}>
                     <CheckCircle2 className="w-4 h-4" /> {toast.msg}
                 </div>
             )}
 
             {/* [ENTERPRISE] Social Proof FOMO Popup */}
             {fomoMsg && (
-                <div className="fixed bottom-6 left-6 bg-white/90 backdrop-blur-md border border-slate-200 p-4 rounded-2xl shadow-xl z-[90] flex items-center gap-3 animate-in slide-in-from-left-8 fade-in duration-500 max-w-sm">
+                <div className="fixed bottom-20 left-3 right-3 sm:bottom-6 sm:left-6 sm:right-auto bg-white/90 backdrop-blur-md border border-slate-200 p-4 rounded-2xl shadow-xl z-[90] flex items-center gap-3 animate-in slide-in-from-left-8 fade-in duration-500 sm:max-w-sm">
                     <div className="w-10 h-10 bg-[#03bbd3]/10 rounded-full flex items-center justify-center shrink-0 border border-[#03bbd3]/20"><Zap className="w-5 h-5 text-[#03bbd3] animate-pulse" /></div>
                     <p className="text-xs text-slate-800 font-medium leading-tight">{fomoMsg}</p>
                 </div>
@@ -216,9 +242,9 @@ export default function AnimayuksWeb() {
 
             {/* [REQ-FE-29] Cookie Consent Banner */}
             {showCookieBanner && (
-                <div className="fixed bottom-0 left-0 w-full md:w-auto md:bottom-6 md:right-6 bg-white border border-slate-200 p-5 rounded-2xl shadow-2xl z-[100] flex flex-col gap-4 animate-in slide-in-from-bottom-8 max-w-sm">
+                <div className="fixed bottom-3 left-3 right-3 w-auto md:left-auto md:bottom-6 md:right-6 bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-2xl z-[100] flex flex-col gap-4 animate-in slide-in-from-bottom-8 md:max-w-sm">
                     <p className="text-xs text-slate-600">Usamos cookies para mejorar la retención y personalizar tu experiencia de juego y compras. Al navegar, aceptas su uso.</p>
-                    <div className="flex items-center gap-3">
+                    <div className="grid grid-cols-1 min-[390px]:grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-3">
                         <button onClick={acceptCookies} className="bg-[#03bbd3] hover:bg-[#02a8be] text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-colors shadow-lg shadow-[#03bbd3]/20">Aceptar Todas</button>
                         <button onClick={() => { navigate('legal'); }} className="text-slate-500 text-xs font-bold hover:text-slate-900 px-2 py-2">Ver Políticas</button>
                     </div>
@@ -251,7 +277,7 @@ export default function AnimayuksWeb() {
                 navigate={navigate}
                 currentView={currentView}
                 openCart={() => setIsCartOpen(true)}
-                openProfile={() => isLoggedIn ? setIsProfileOpen(true) : setIsAuthModalOpen(true)}
+                openProfile={() => isLoggedIn ? setIsProfileOpen(true) : openAuth()}
                 openMobileMenu={() => setIsMobileMenuOpen(true)}
                 isLoggedIn={isLoggedIn}
                 showToast={showToast}
@@ -266,50 +292,88 @@ export default function AnimayuksWeb() {
                 )}
                 {currentView === 'store' && (
                     <div className="bg-store min-h-screen -mt-20 pt-20">
-                        <StoreView navigate={navigate} showToast={showToast} />
+                        <StoreView
+                            navigate={navigate}
+                            showToast={showToast}
+                            openCart={() => setIsCartOpen(true)}
+                            openProfile={() => isLoggedIn ? setIsProfileOpen(true) : openAuth()}
+                            isLoggedIn={isLoggedIn}
+                        />
                     </div>
                 )}
                 {currentView === 'product' && (
-                    <div className="bg-store min-h-screen -mt-20 pt-20">
+                    <div className="bg-[#f8fafc] min-h-screen">
                         <ProductView productId={selectedProductId} navigate={navigate} showToast={showToast} />
                     </div>
                 )}
-                {currentView === 'profile' && isLoggedIn && (
-                    <div className="bg-landing min-h-screen -mt-20 pt-20">
-                        <ProfileDashboard showToast={showToast} setShowOtpModal={setShowOtpModal} navigate={navigate} />
+                {currentView === 'profile' && (
+                    <div className="bg-[#f8fafc] min-h-screen">
+                        <ProfileDashboard navigate={navigate} showToast={showToast} />
                     </div>
                 )}
                 {currentView === 'legal' && (
-                    <div className="bg-store min-h-screen -mt-20 pt-20">
-                        <LegalView navigate={navigate} />
+                    <div className="bg-[#f8fafc] min-h-screen">
+                        <LegalView navigate={navigate} initialSlug={selectedLegalSlug} />
                     </div>
                 )}
             </main>
 
-            <Footer navigate={navigate} showToast={showToast} />
+            {/* Global Footer (Visible en todas las vistas menos login/checkout modal) */}
+            <Footer navigate={navigate} />
 
-            {/* [REQ-FE-26] Floating Donation Button */}
-            <button
-                onClick={() => setIsDonationOpen(true)}
-                className="fixed bottom-8 right-8 w-16 h-16 bg-gradient-to-tr from-pink-500 to-purple-500 rounded-full shadow-[0_0_20px_rgba(236,72,153,0.5)] flex items-center justify-center cursor-pointer hover:scale-110 transition-transform z-40 group animate-bounce"
-                style={{ animationDuration: '2s' }}
-            >
-                <div className="relative">
-                    <Cat className="w-8 h-8 text-white group-hover:animate-pulse" />
-                    <Coins className="w-4 h-4 text-amber-300 absolute -top-2 -right-2" />
-                </div>
-            </button>
-
-            {/* Modals & Drawers */}
-            <CartDrawer isOpen={isCartOpen} close={() => setIsCartOpen(false)} showToast={showToast} requireAddress={startCheckout} isLoggedIn={isLoggedIn} openAuth={() => setIsAuthModalOpen(true)} navigate={navigate} />
-            <ProfileDrawer isOpen={isProfileOpen} close={() => setIsProfileOpen(false)} navigate={navigate} logout={async () => { await apiLogout(); setIsProfileOpen(false); navigate('landing'); showToast('Sesión cerrada'); }} />
-            <AuthModal isOpen={isAuthModalOpen} close={() => setIsAuthModalOpen(false)} showToast={showToast} />
-            <DonationModal isOpen={isDonationOpen} close={() => setIsDonationOpen(false)} isLoggedIn={isLoggedIn} showToast={showToast} />
-            <CheckoutAddressModal isOpen={showCheckoutAddressModal} close={() => setShowCheckoutAddressModal(false)} showToast={showToast} onAddressReady={(addressId) => { setCheckoutAddress(addressId); setShowPaymentModal(true); }} />
-            {/* Fase 42 — Paso de pago (SIMULADO, TODO: STRIPE) */}
-            <PaymentModal isOpen={showPaymentModal} close={() => setShowPaymentModal(false)} showToast={showToast} />
-            <OtpModal isOpen={showOtpModal} close={() => setShowOtpModal(false)} showToast={showToast} />
-
+            {/* Modales y Drawers Globales */}
+            <CartDrawer
+                isOpen={isCartOpen}
+                close={() => setIsCartOpen(false)}
+                onClose={() => setIsCartOpen(false)}
+                navigate={navigate}
+                showToast={showToast}
+                requireAddress={() => { setIsCartOpen(false); startCheckout(); }}
+                onCheckout={() => { setIsCartOpen(false); startCheckout(); }}
+                isLoggedIn={isLoggedIn}
+                openAuth={openAuth}
+            />
+            <ProfileDrawer
+                isOpen={isProfileOpen}
+                close={() => setIsProfileOpen(false)}
+                onClose={() => setIsProfileOpen(false)}
+                navigate={navigate}
+                logout={async () => { await apiLogout(); showToast('Sesión cerrada correctamente'); setIsProfileOpen(false); }}
+                onLogout={async () => { await apiLogout(); showToast('Sesión cerrada correctamente'); setIsProfileOpen(false); }}
+            />
+            <AuthModal
+                isOpen={isAuthModalOpen}
+                close={closeAuth}
+                onClose={closeAuth}
+                showToast={showToast}
+                currentView={currentView}
+            />
+            <CheckoutAddressModal
+                isOpen={showCheckoutAddressModal}
+                close={() => setShowCheckoutAddressModal(false)}
+                onClose={() => setShowCheckoutAddressModal(false)}
+                onSaved={(addressId) => { setCheckoutAddress(addressId); setShowCheckoutAddressModal(false); setShowPaymentModal(true); }}
+                showToast={showToast}
+            />
+            <OtpModal
+                isOpen={showOtpModal}
+                close={() => setShowOtpModal(false)}
+                onClose={() => setShowOtpModal(false)}
+                showToast={showToast}
+            />
+            <PaymentModal
+                isOpen={showPaymentModal}
+                close={() => setShowPaymentModal(false)}
+                onClose={() => setShowPaymentModal(false)}
+                navigate={navigate}
+                showToast={showToast}
+            />
+            <DonationModal
+                isOpen={isDonationOpen}
+                close={() => setIsDonationOpen(false)}
+                onClose={() => setIsDonationOpen(false)}
+                showToast={showToast}
+            />
         </div>
     );
 }

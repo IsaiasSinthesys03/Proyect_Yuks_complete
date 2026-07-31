@@ -89,18 +89,37 @@ export const LandingView = ({ navigate, showToast }) => {
     };
 
     return (
-        <div className="space-y-0">
-
-            {/* Quick Action Navigation */}
-            <div className="absolute top-24 left-1/2 -translate-x-1/2 z-40 hidden md:flex items-center gap-2 bg-white/60 backdrop-blur-md border border-slate-200 rounded-full px-2 py-1.5 shadow-xl animate-in slide-in-from-top-8">
-                <button onClick={() => scrollToSection('tienda')} className="px-4 py-1.5 text-xs font-bold text-slate-500 hover:text-[#96c93e] hover:bg-[#96c93e]/5 rounded-full transition-colors flex items-center gap-1"><Package className="w-3 h-3" /> Tendencias</button>
-                <button onClick={() => scrollToSection('personajes')} className="px-4 py-1.5 text-xs font-bold text-slate-500 hover:text-[#96c93e] hover:bg-[#96c93e]/5 rounded-full transition-colors flex items-center gap-1"><Gamepad2 className="w-3 h-3" /> Personajes</button>
-                <button onClick={() => scrollToSection('quienes-somos')} className="px-4 py-1.5 text-xs font-bold text-slate-500 hover:text-[#96c93e] hover:bg-[#96c93e]/5 rounded-full transition-colors flex items-center gap-1"><Navigation className="w-3 h-3" /> Quiénes Somos</button>
+        <div className="space-y-0 relative">
+            {/* Surprise Floating Logo - Top Left */}
+            <div className="absolute top-12 left-20 z-[100] group cursor-pointer hidden xl:block" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                <div className="relative animate-in fade-in slide-in-from-left-8 duration-700">
+                    <img src="/assets/img/logo_animayuks.png" alt="Animayuks" className="h-16 object-contain drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)] group-hover:scale-110 transition-transform duration-300 group-hover:rotate-2" />
+                    <div className="absolute -inset-4 bg-white/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                </div>
             </div>
 
-            <HeroCarousel />
+            <div 
+                className="relative bg-cover bg-top bg-no-repeat w-full"
+                style={{ backgroundImage: "url('/assets/imgWeb/Banner_Tienda/Fondo_2.png')" }}
+            >
+                {/* Overlay opcional para integrar colores */}
+                <div className="absolute inset-0 bg-gradient-to-b from-[#0a2e0d]/50 via-[#3a2212]/30 to-[#3a2212]/80 pointer-events-none z-0"></div>
+                
+                <div className="relative z-10 pt-24 pb-8">
+                    {/* Quick Action Navigation */}
+                    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-40 hidden md:flex items-center gap-2 bg-white/60 backdrop-blur-md border border-slate-200 rounded-full px-2 py-1.5 shadow-xl animate-in slide-in-from-top-8">
+                        <button onClick={() => scrollToSection('tienda')} className="px-4 py-1.5 text-xs font-bold text-slate-500 hover:text-[#96c93e] hover:bg-[#96c93e]/5 rounded-full transition-colors flex items-center gap-1"><Package className="w-3 h-3" /> Tendencias</button>
+                        <button onClick={() => scrollToSection('personajes')} className="px-4 py-1.5 text-xs font-bold text-slate-500 hover:text-[#96c93e] hover:bg-[#96c93e]/5 rounded-full transition-colors flex items-center gap-1"><Gamepad2 className="w-3 h-3" /> Personajes</button>
+                        <button onClick={() => scrollToSection('quienes-somos')} className="px-4 py-1.5 text-xs font-bold text-slate-500 hover:text-[#96c93e] hover:bg-[#96c93e]/5 rounded-full transition-colors flex items-center gap-1"><Navigation className="w-3 h-3" /> Quiénes Somos</button>
+                    </div>
 
-            <TrendingTop navigate={navigate} showToast={showToast} />
+                    <HeroCarousel />
+                </div>
+
+                <div className="relative z-10">
+                    <TrendingTop navigate={navigate} showToast={showToast} />
+                </div>
+            </div>
 
             <CharacterGrid>
                 <AboutExperience navigate={navigate} />

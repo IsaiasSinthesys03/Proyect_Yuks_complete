@@ -1,7 +1,11 @@
 import { Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
 import dotenv from 'dotenv';
-import { redisConnectionOptions } from '../../cache/redis-client';
+import {
+  observeRedisClient,
+  observeRedisEmitter,
+  redisWorkerConnectionOptions,
+} from '../../cache/redis-client';
 import { REPORTS_QUEUE_NAME } from '../reports-queue';
 import { ReportRepository } from '../../database/repositories/ReportRepository';
 import { ReportGenerationService } from '../../services/reports/ReportGenerationService';
@@ -26,9 +30,12 @@ const reportRepository = new ReportRepository();
 const reportGenerationService = new ReportGenerationService(reportRepository);
 
 // Conexión Redis dedicada para publicar (independiente de la de BullMQ).
-const publisherRedis = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null,
-});
+const publisherRedis = observeRedisClient(
+  new IORedis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', {
+    maxRetriesPerRequest: null,
+  }),
+  'worker:reports-publisher'
+);
 const realtimePublisher = new RedisRealtimePublisher(publisherRedis);
 
 interface ReportJobData {
@@ -72,10 +79,12 @@ export const reportsWorker = new Worker(
     console.log(`✅ [Reports Worker] Reporte "${reportType}" listo: ${result.rowCount} filas → ${result.filePath}`);
   },
   {
-    connection: redisConnectionOptions,
+    connection: redisWorkerConnectionOptions,
     concurrency: 2,
   }
 );
+
+observeRedisEmitter(reportsWorker, 'worker:reports');
 
 reportsWorker.on('failed', async (job, error) => {
   if (!job) return;

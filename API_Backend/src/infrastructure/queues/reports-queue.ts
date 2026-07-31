@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq';
-import { redisConnectionOptions } from '../cache/redis-client';
+import { observeRedisEmitter, redisConnectionOptions } from '../cache/redis-client';
 
 export const REPORTS_QUEUE_NAME = 'animayuks-reports-queue';
 
@@ -12,6 +12,9 @@ export const REPORTS_QUEUE_NAME = 'animayuks-reports-queue';
  */
 export const reportsQueue = new Queue(REPORTS_QUEUE_NAME, {
   connection: redisConnectionOptions,
+  skipWaitingForReady: true,
+  skipVersionCheck: true,
+  skipMetasUpdate: true,
   defaultJobOptions: {
     attempts: 3,
     backoff: { type: 'exponential', delay: 3000 },
@@ -19,3 +22,5 @@ export const reportsQueue = new Queue(REPORTS_QUEUE_NAME, {
     removeOnFail: { count: 100 },
   },
 });
+
+observeRedisEmitter(reportsQueue, 'queue:reports');
