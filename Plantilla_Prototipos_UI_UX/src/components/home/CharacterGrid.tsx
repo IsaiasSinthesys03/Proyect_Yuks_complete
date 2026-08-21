@@ -55,6 +55,13 @@ export const CharacterGrid: React.FC<CharacterGridProps> = ({ children }) => {
                         animation-play-state: paused;
                     }
                 }
+                @media (min-width: 768px) {
+                    .marquee-mobile {
+                        display: grid;
+                        width: auto;
+                        animation: none;
+                    }
+                }
             `}</style>
             
             <div className="container mx-auto px-6 lg:px-12 relative z-10">

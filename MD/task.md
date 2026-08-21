@@ -1805,3 +1805,10 @@
 - [x] E2E real: solicitud 202, token SHA-256 coincidente, cambio desde UI, URL limpia, contraseña anterior 401 y nueva 200.
 - [x] Reutilización verificada: HTTP 400, hash intacto y estado visual para solicitar un nuevo enlace.
 - [x] `npm run typecheck`, `npm run build` y consola del navegador completados con cero errores.
+
+## Corrección visual — Cards de personajes (2026-08-13)
+
+- [x] Corregida la cascada CSS que mantenía `.marquee-mobile` como `display:flex` en escritorio y anulaba `md:grid`.
+- [x] Las tres cards cargan sus imágenes reales y recuperaron dimensiones visibles de aproximadamente 459 × 592 px en escritorio.
+- [x] El carrusel móvil conserva `display:flex`, animación y cards de 280 × 361 px sin desbordamiento horizontal.
+- [x] `npm run build` completado con 1,864 módulos transformados y cero errores.
