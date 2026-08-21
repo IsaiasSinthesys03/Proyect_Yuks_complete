@@ -7,7 +7,7 @@ import { GetCategoriesUseCase } from '../../../application/usecases/GetCategorie
 import { GetProductsQueryDTO } from '../../../domain/types/ProductDTOs';
 import { ProductNotFoundError } from '../../../domain/errors/ProductErrors';
 
-const TOP_PRODUCTS_TTL_SECONDS = 3600;
+const TOP_PRODUCTS_TTL_SECONDS = 60;
 
 /**
  * Tope de espera para la LECTURA de caché (ms). ioredis encola los comandos
